@@ -42,21 +42,10 @@ export default function SignupForm() {
       if (error) throw error
 
       if (data.session) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/auth-signup`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${data.session.access_token}`,
-            },
-            body: JSON.stringify({ email: form.email }),
-          }
-        )
-        if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.message || 'Failed to set up wallet')
-        }
+        const { error: fnError } = await supabase.functions.invoke('auth-signup', {
+          body: { email: form.email },
+        })
+        if (fnError) throw new Error(fnError.message || 'Failed to set up wallet')
         router.push('/dashboard')
       } else {
         setDone(true)

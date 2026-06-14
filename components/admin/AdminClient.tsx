@@ -63,11 +63,11 @@ export default function AdminClient({
   }
 
   const statusColor: Record<string, string> = {
-    pending: 'text-yellow-400 bg-yellow-400/10',
-    consensus_reached: 'text-blue-400 bg-blue-400/10',
-    locked: 'text-orange-400 bg-orange-400/10',
-    unlocked: 'text-[#00FF88] bg-[#00FF88]/10',
-    failed: 'text-red-400 bg-red-400/10',
+    pending:           'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+    consensus_reached: 'text-blue-600 dark:text-blue-400 bg-blue-500/10',
+    locked:            'text-mauve bg-mauve/10',
+    unlocked:          'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10',
+    failed:            'text-destructive bg-destructive/10',
   }
 
   return (
@@ -80,12 +80,12 @@ export default function AdminClient({
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Plans', value: stats.total, icon: TrendingUp, color: 'text-[#00FF88]' },
-          { label: 'Pending Consensus', value: stats.pending, icon: Clock, color: 'text-yellow-400' },
-          { label: 'Unlocked Plans', value: stats.unlocked, icon: CheckCircle, color: 'text-blue-400' },
-          { label: 'Total Revenue', value: `${stats.revenue_gen} GEN`, icon: Coins, color: 'text-[#00FF88]' },
+          { label: 'Total Plans',        value: stats.total,               icon: TrendingUp, color: 'text-plum dark:text-peach' },
+          { label: 'Pending Consensus',  value: stats.pending,             icon: Clock,       color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Unlocked Plans',     value: stats.unlocked,            icon: CheckCircle, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Total Revenue',      value: `${stats.revenue_gen} GEN`, icon: Coins,      color: 'text-mauve dark:text-peach' },
         ].map((s) => (
-          <div key={s.label} className="glass rounded-xl p-5">
+          <div key={s.label} className="glass rounded-xl p-5 border border-border/40">
             <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
@@ -94,21 +94,17 @@ export default function AdminClient({
       </div>
 
       {/* Pricing management */}
-      <div className="glass rounded-2xl p-6">
+      <div className="glass rounded-2xl p-6 border border-border/50">
         <h2 className="font-semibold mb-4">Update Pricing Tiers</h2>
         <div className="grid sm:grid-cols-3 gap-4 mb-4">
           {[1, 3, 6].map((d) => (
             <div key={d}>
               <label className="text-sm font-medium mb-1.5 block">{d}-Month Plan (GEN)</label>
               <input
-                type="number"
-                min={1}
-                step={0.5}
+                type="number" min={1} step={0.5}
                 value={localPricing[d] ?? ''}
-                onChange={(e) =>
-                  setLocalPricing({ ...localPricing, [d]: parseFloat(e.target.value) })
-                }
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#00FF88]/50"
+                onChange={(e) => setLocalPricing({ ...localPricing, [d]: parseFloat(e.target.value) })}
+                className="input-field"
               />
             </div>
           ))}
@@ -116,7 +112,7 @@ export default function AdminClient({
         <button
           onClick={handleUpdatePricing}
           disabled={saving}
-          className="flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-[#00E87A] disabled:opacity-50"
+          className="flex items-center gap-2 btn-primary px-5 py-2.5 text-sm disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Save Pricing
@@ -124,14 +120,14 @@ export default function AdminClient({
       </div>
 
       {/* Plans table */}
-      <div className="glass rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-white/10">
+      <div className="glass rounded-2xl overflow-hidden border border-border/50">
+        <div className="p-5 border-b border-border/40">
           <h2 className="font-semibold">All Plans ({plans.length})</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-muted-foreground text-xs">
+              <tr className="border-b border-border/40 text-muted-foreground text-xs">
                 <th className="text-left p-4">User</th>
                 <th className="text-left p-4">Duration</th>
                 <th className="text-left p-4">Status</th>
@@ -139,9 +135,9 @@ export default function AdminClient({
                 <th className="text-left p-4">Created</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border/20">
               {plans.map((plan) => (
-                <tr key={plan.id} className="hover:bg-white/5 transition-all">
+                <tr key={plan.id} className="hover:bg-plum/5 dark:hover:bg-white/5 transition-all">
                   <td className="p-4">
                     <div className="font-medium">{plan.users?.email}</div>
                     <div className="text-xs text-muted-foreground font-mono">
@@ -154,7 +150,7 @@ export default function AdminClient({
                       {plan.status}
                     </span>
                   </td>
-                  <td className="p-4 text-[#00FF88] font-medium">{plan.price_gen} GEN</td>
+                  <td className="p-4 text-plum dark:text-peach font-medium">{plan.price_gen} GEN</td>
                   <td className="p-4 text-muted-foreground">
                     {new Date(plan.created_at).toLocaleDateString()}
                   </td>

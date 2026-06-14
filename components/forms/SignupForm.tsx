@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Loader2, CheckCircle, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
 
 export default function SignupForm() {
   const router = useRouter()
@@ -40,7 +41,6 @@ export default function SignupForm() {
 
       if (error) throw error
 
-      // Trigger wallet generation via Edge Function
       if (data.session) {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/auth-signup`,
@@ -59,7 +59,6 @@ export default function SignupForm() {
         }
         router.push('/dashboard')
       } else {
-        // Email confirmation required
         setDone(true)
       }
     } catch (err: unknown) {
@@ -71,8 +70,14 @@ export default function SignupForm() {
 
   if (done) {
     return (
-      <div className="glass rounded-2xl p-8 w-full max-w-md text-center">
-        <CheckCircle className="w-12 h-12 text-[#00FF88] mx-auto mb-4" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass rounded-2xl p-8 w-full max-w-md text-center border border-border/50"
+      >
+        <div className="w-16 h-16 rounded-full bg-mauve/15 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-8 h-8 text-mauve dark:text-peach" />
+        </div>
         <h2 className="text-2xl font-bold mb-2">Check Your Email</h2>
         <p className="text-muted-foreground text-sm">
           We sent a confirmation link to <strong>{form.email}</strong>.
@@ -80,16 +85,21 @@ export default function SignupForm() {
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-block text-sm text-[#00FF88] hover:underline"
+          className="mt-6 inline-block text-sm text-plum dark:text-peach hover:underline font-medium"
         >
           Back to Login
         </Link>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div className="glass rounded-2xl p-8 w-full max-w-md">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="glass rounded-2xl p-8 w-full max-w-md border border-border/50"
+    >
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1">Create your account</h1>
         <p className="text-muted-foreground text-sm">
@@ -106,7 +116,7 @@ export default function SignupForm() {
             placeholder="you@example.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30 transition-all"
+            className="input-field"
           />
         </div>
 
@@ -119,12 +129,12 @@ export default function SignupForm() {
               placeholder="Min. 8 characters"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30 transition-all"
+              className="input-field pr-10"
             />
             <button
               type="button"
               onClick={() => setShowPass(!showPass)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -139,14 +149,16 @@ export default function SignupForm() {
             placeholder="Repeat password"
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30 transition-all"
+            className="input-field"
           />
         </div>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
           type="submit"
           disabled={loading}
-          className="w-full bg-[#00FF88] text-black font-semibold py-3 rounded-lg hover:bg-[#00E87A] transition-all glow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full btn-primary py-3 glow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
@@ -156,22 +168,23 @@ export default function SignupForm() {
           ) : (
             'Create Account'
           )}
-        </button>
+        </motion.button>
       </form>
 
-      <div className="mt-6 p-4 bg-[#00FF88]/5 border border-[#00FF88]/20 rounded-lg">
+      <div className="mt-6 p-4 rounded-xl border border-mauve/20 dark:border-peach/20 bg-mauve/5 dark:bg-peach/5 flex gap-3">
+        <Lock className="w-4 h-4 text-mauve dark:text-peach mt-0.5 shrink-0" />
         <p className="text-xs text-muted-foreground">
-          🔐 A secure blockchain wallet is automatically created and linked to your account.
+          A secure blockchain wallet is automatically created and linked to your account.
           Your private key is encrypted and stored safely — never exposed.
         </p>
       </div>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
         Already have an account?{' '}
-        <Link href="/login" className="text-[#00FF88] hover:underline">
+        <Link href="/login" className="text-plum dark:text-peach hover:underline font-medium">
           Log In
         </Link>
       </p>
-    </div>
+    </motion.div>
   )
 }

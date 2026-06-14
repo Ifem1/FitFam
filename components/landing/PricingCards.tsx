@@ -52,37 +52,69 @@ const plans = [
 export default function PricingCards() {
   return (
     <section id="pricing" className="py-24 relative">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF88]/2 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(147,80,115,0.1) 0%, transparent 70%)',
+          }}
+        />
+      </div>
 
       <div className="container mx-auto px-4 relative">
         <div className="text-center mb-16">
-          <span className="text-[#00FF88] text-sm font-medium uppercase tracking-widest">Pricing</span>
-          <h2 className="text-4xl md:text-5xl font-bold mt-2 mb-4">Simple, Token-Based Pricing</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <motion.span
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-mauve text-sm font-semibold uppercase tracking-widest"
+          >
+            Pricing
+          </motion.span>
+          <motion.h2
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-4xl md:text-5xl font-bold mt-2 mb-4"
+          >
+            Simple, Token-Based Pricing
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-muted-foreground max-w-xl mx-auto"
+          >
             Pay with GEN tokens on StudioNet. Prices are enforced by the Intelligent Contract — transparent and immutable.
-          </p>
+          </motion.p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.duration}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className={`relative rounded-2xl p-8 flex flex-col ${
+              transition={{ duration: 0.5, delay: i * 0.12 }}
+              whileHover={{ y: -8, transition: { duration: 0.25 } }}
+              className={`relative rounded-2xl p-8 flex flex-col transition-all duration-300 ${
                 plan.popular
-                  ? 'border border-[#00FF88]/50 bg-[#00FF88]/5 glow'
-                  : 'glass'
+                  ? 'border-2 border-mauve/60 bg-gradient-to-b from-plum/10 to-mauve/5 dark:from-peach/10 dark:to-mauve/10 glow'
+                  : 'glass border border-border/50 hover:border-mauve/30'
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-[#00FF88] text-black text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> Most Popular
-                  </span>
+                  <motion.span
+                    animate={{ scale: [1, 1.04, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="bg-gradient-to-r from-plum to-mauve dark:from-peach dark:to-mauve text-linen dark:text-plum-black text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-lg"
+                  >
+                    <Zap className="w-3 h-3" fill="currentColor" /> Most Popular
+                  </motion.span>
                 </div>
               )}
 
@@ -90,7 +122,7 @@ export default function PricingCards() {
                 <h3 className="text-lg font-semibold text-muted-foreground mb-1">{plan.duration}</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-bold">{plan.price}</span>
-                  <span className="text-[#00FF88] font-semibold text-lg">GEN</span>
+                  <span className="text-mauve dark:text-peach font-semibold text-lg">GEN</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
               </div>
@@ -98,29 +130,36 @@ export default function PricingCards() {
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm">
-                    <Check className="w-4 h-4 text-[#00FF88] mt-0.5 shrink-0" />
+                    <Check className="w-4 h-4 text-mauve dark:text-peach mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{f}</span>
                   </li>
                 ))}
               </ul>
 
-              <Link
-                href="/signup"
-                className={`w-full py-3 rounded-xl font-semibold text-center text-sm transition-all ${
-                  plan.popular
-                    ? 'bg-[#00FF88] text-black hover:bg-[#00E87A] glow-sm'
-                    : 'glass hover:bg-white/10 text-white'
-                }`}
-              >
-                Get {plan.duration} Plan
-              </Link>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  href="/signup"
+                  className={`w-full py-3 rounded-xl font-semibold text-center text-sm transition-all block ${
+                    plan.popular
+                      ? 'btn-primary glow-sm'
+                      : 'glass hover:bg-plum/10 dark:hover:bg-white/10 text-foreground border border-border/50'
+                  }`}
+                >
+                  Get {plan.duration} Plan
+                </Link>
+              </motion.div>
             </motion.div>
           ))}
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-8">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-center text-xs text-muted-foreground mt-8"
+        >
           Prices enforced on-chain. GEN tokens required on StudioNet.
-        </p>
+        </motion.p>
       </div>
     </section>
   )

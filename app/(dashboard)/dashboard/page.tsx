@@ -6,7 +6,6 @@ export default async function DashboardPage() {
   const supabase = createServerClient()
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Fetch user profile and plans
   const { data: plans } = await supabase
     .from('plans')
     .select('*')
@@ -25,9 +24,9 @@ export default async function DashboardPage() {
   const totalPlans = plans?.length ?? 0
 
   const stats = [
-    { label: 'Total Plans', value: totalPlans, icon: ClipboardIcon, color: 'text-[#00FF88]' },
-    { label: 'Pending', value: pendingPlans.length, icon: Clock, color: 'text-yellow-400' },
-    { label: 'Completed', value: plans?.filter(p => p.status === 'unlocked').length ?? 0, icon: CheckCircle, color: 'text-blue-400' },
+    { label: 'Total Plans',  value: totalPlans,                                              icon: ClipboardIcon, color: 'text-plum dark:text-peach' },
+    { label: 'Pending',      value: pendingPlans.length,                                     icon: Clock,          color: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Completed',    value: plans?.filter(p => p.status === 'unlocked').length ?? 0, icon: CheckCircle,    color: 'text-mauve dark:text-mauve-light' },
   ]
 
   return (
@@ -40,7 +39,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/dashboard/new-plan"
-          className="flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-4 py-2.5 rounded-lg hover:bg-[#00E87A] transition-all glow-sm text-sm"
+          className="flex items-center gap-2 btn-primary px-4 py-2.5 text-sm glow-sm"
         >
           <PlusCircle className="w-4 h-4" />
           New Plan
@@ -49,12 +48,12 @@ export default async function DashboardPage() {
 
       {/* Active plan banner */}
       {activePlan && (
-        <div className="glass rounded-2xl p-6 border border-[#00FF88]/20 bg-[#00FF88]/5">
+        <div className="glass rounded-2xl p-6 border border-mauve/30 bg-gradient-to-r from-plum/8 to-mauve/5 dark:from-peach/8 dark:to-mauve/5">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="w-4 h-4 text-[#00FF88]" />
-                <span className="text-[#00FF88] text-sm font-medium">Active Plan</span>
+                <TrendingUp className="w-4 h-4 text-mauve dark:text-peach" />
+                <span className="text-mauve dark:text-peach text-sm font-medium">Active Plan</span>
               </div>
               <h3 className="font-bold text-lg">{activePlan.duration_months}-Month Fitness Plan</h3>
               <p className="text-muted-foreground text-sm mt-1">
@@ -63,7 +62,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href={`/dashboard/plans/${activePlan.id}`}
-              className="flex items-center gap-2 glass px-4 py-2 rounded-lg text-sm hover:bg-white/10 transition-all"
+              className="flex items-center gap-2 glass px-4 py-2 rounded-xl text-sm border border-border/50 hover:border-mauve/40 transition-all"
             >
               View Plan <ArrowRight className="w-4 h-4" />
             </Link>
@@ -74,7 +73,7 @@ export default async function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="glass rounded-xl p-5">
+          <div key={stat.label} className="glass rounded-xl p-5 border border-border/40 hover:border-mauve/30 transition-colors card-hover">
             <div className={`text-3xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
             <div className="text-xs text-muted-foreground">{stat.label}</div>
           </div>
@@ -83,17 +82,17 @@ export default async function DashboardPage() {
 
       {/* Wallet snippet */}
       {userProfile?.wallet_address && (
-        <div className="glass rounded-xl p-5">
+        <div className="glass rounded-xl p-5 border border-border/40">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Your Wallet Address</p>
-              <p className="font-mono text-sm text-[#00FF88]">
+              <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-medium">Your Wallet Address</p>
+              <p className="font-mono text-sm text-plum dark:text-peach">
                 {userProfile.wallet_address.slice(0, 6)}...{userProfile.wallet_address.slice(-4)}
               </p>
             </div>
             <Link
               href="/dashboard/wallet"
-              className="text-sm text-muted-foreground hover:text-white flex items-center gap-1"
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               View Wallet <ArrowRight className="w-3 h-3" />
             </Link>
@@ -105,15 +104,15 @@ export default async function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold">Recent Plans</h2>
-          <Link href="/dashboard/plans" className="text-sm text-muted-foreground hover:text-white flex items-center gap-1">
+          <Link href="/dashboard/plans" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             View all <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
 
         {!plans || plans.length === 0 ? (
-          <div className="glass rounded-2xl p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#00FF88]/10 flex items-center justify-center mx-auto mb-4">
-              <PlusCircle className="w-8 h-8 text-[#00FF88]" />
+          <div className="glass rounded-2xl p-12 text-center border border-border/40">
+            <div className="w-16 h-16 rounded-2xl bg-plum/10 dark:bg-peach/10 flex items-center justify-center mx-auto mb-4">
+              <PlusCircle className="w-8 h-8 text-plum dark:text-peach" />
             </div>
             <h3 className="font-semibold mb-2">No plans yet</h3>
             <p className="text-muted-foreground text-sm mb-6 max-w-xs mx-auto">
@@ -121,7 +120,7 @@ export default async function DashboardPage() {
             </p>
             <Link
               href="/dashboard/new-plan"
-              className="inline-flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-6 py-3 rounded-lg hover:bg-[#00E87A] transition-all text-sm"
+              className="inline-flex items-center gap-2 btn-primary px-6 py-3 text-sm"
             >
               Create Your First Plan
             </Link>
@@ -148,19 +147,19 @@ function ClipboardIcon({ className }: { className?: string }) {
 
 function PlanRow({ plan }: { plan: Record<string, unknown> }) {
   const statusConfig: Record<string, { label: string; color: string }> = {
-    pending: { label: 'Validators Consensus...', color: 'text-yellow-400 bg-yellow-400/10' },
-    consensus_reached: { label: 'Ready to Pay', color: 'text-blue-400 bg-blue-400/10' },
-    locked: { label: 'Locked — Pay to Unlock', color: 'text-orange-400 bg-orange-400/10' },
-    unlocked: { label: 'Active', color: 'text-[#00FF88] bg-[#00FF88]/10' },
-    failed: { label: 'Failed', color: 'text-red-400 bg-red-400/10' },
+    pending:           { label: 'Validators Consensus...', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
+    consensus_reached: { label: 'Ready to Pay',            color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
+    locked:            { label: 'Pay to Unlock',           color: 'text-mauve bg-mauve/10' },
+    unlocked:          { label: 'Active',                  color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10' },
+    failed:            { label: 'Failed',                  color: 'text-destructive bg-destructive/10' },
   }
 
-  const status = statusConfig[plan.status as string] ?? { label: plan.status as string, color: 'text-muted-foreground' }
+  const status = statusConfig[plan.status as string] ?? { label: plan.status as string, color: 'text-muted-foreground bg-muted' }
 
   return (
     <Link
       href={`/dashboard/plans/${plan.id}`}
-      className="flex items-center justify-between glass rounded-xl p-4 hover:bg-white/5 transition-all group"
+      className="flex items-center justify-between glass rounded-xl p-4 border border-border/40 hover:border-mauve/30 transition-all group"
     >
       <div>
         <div className="font-medium text-sm">{plan.duration_months as number}-Month Plan</div>
@@ -172,7 +171,7 @@ function PlanRow({ plan }: { plan: Record<string, unknown> }) {
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${status.color}`}>
           {status.label}
         </span>
-        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors" />
+        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
       </div>
     </Link>
   )

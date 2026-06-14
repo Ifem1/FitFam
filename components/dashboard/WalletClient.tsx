@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Copy, Eye, EyeOff, AlertTriangle, Loader2, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 
 interface Transaction {
   id: string
@@ -62,9 +63,9 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
     plan_payment: 'Plan Payment',
   }
   const txStatusColor: Record<string, string> = {
-    pending: 'text-yellow-400',
-    confirmed: 'text-[#00FF88]',
-    failed: 'text-red-400',
+    pending:   'text-amber-600 dark:text-amber-400',
+    confirmed: 'text-plum dark:text-peach',
+    failed:    'text-destructive',
   }
 
   return (
@@ -74,94 +75,107 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
         <p className="text-muted-foreground text-sm mt-1">Manage your GEN token wallet</p>
       </div>
 
-      {/* Wallet address card */}
-      <div className="glass rounded-2xl p-6">
-        <p className="text-xs text-muted-foreground mb-2">Your Wallet Address</p>
+      {/* Wallet address */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-2xl p-6 border border-border/50"
+      >
+        <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-medium">Your Wallet Address</p>
         <div className="flex items-center gap-3">
-          <code className="text-sm text-[#00FF88] font-mono flex-1 break-all">
+          <code className="text-sm text-plum dark:text-peach font-mono flex-1 break-all">
             {walletAddress ?? 'Not yet generated'}
           </code>
           {walletAddress && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
               onClick={copyAddress}
-              className="shrink-0 glass w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition-all"
+              className="shrink-0 glass w-9 h-9 rounded-lg flex items-center justify-center hover:bg-plum/10 dark:hover:bg-white/10 transition-all"
             >
               <Copy className="w-4 h-4" />
-            </button>
+            </motion.button>
           )}
         </div>
         <p className="text-xs text-muted-foreground mt-3">
           This wallet is used for all GenLayer contract interactions on StudioNet.
         </p>
-      </div>
+      </motion.div>
 
       {/* Export private key */}
-      <div className="glass rounded-2xl p-6">
-        <h3 className="font-semibold mb-2">Export Private Key</h3>
-        <div className="flex items-start gap-3 p-3 bg-yellow-400/5 border border-yellow-400/20 rounded-lg mb-4">
-          <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-yellow-400">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="glass rounded-2xl p-6 border border-border/50"
+      >
+        <h3 className="font-semibold mb-3">Export Private Key</h3>
+        <div className="flex items-start gap-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl mb-4">
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">
             Never share your private key. Anyone with it has full control of your wallet. Store it in a password manager.
           </p>
         </div>
 
         {!privateKey ? (
-          <div>
-            {!showExport ? (
-              <button
-                onClick={() => setShowExport(true)}
-                className="text-sm glass px-4 py-2.5 rounded-lg hover:bg-white/10 transition-all"
-              >
-                Reveal Private Key
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <input
-                  type="password"
-                  placeholder="Enter your account password to confirm"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#00FF88]/50"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleExportKey}
-                    disabled={loading}
-                    className="flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-[#00E87A] disabled:opacity-50"
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    Export
-                  </button>
-                  <button
-                    onClick={() => { setShowExport(false); setPassword('') }}
-                    className="glass px-4 py-2.5 rounded-lg text-sm hover:bg-white/10"
-                  >
-                    Cancel
-                  </button>
-                </div>
+          !showExport ? (
+            <button
+              onClick={() => setShowExport(true)}
+              className="text-sm glass px-4 py-2.5 rounded-xl border border-border/50 hover:border-mauve/40 transition-all"
+            >
+              Reveal Private Key
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <input
+                type="password"
+                placeholder="Enter your account password to confirm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field"
+              />
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                  onClick={handleExportKey}
+                  disabled={loading}
+                  className="flex items-center gap-2 btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  Export
+                </motion.button>
+                <button
+                  onClick={() => { setShowExport(false); setPassword('') }}
+                  className="glass px-4 py-2.5 rounded-xl text-sm border border-border/50 hover:border-mauve/40 transition-all"
+                >
+                  Cancel
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )
         ) : (
           <div className="space-y-3">
-            <div className="relative bg-white/5 border border-white/10 rounded-lg p-4">
-              <code className="text-xs text-[#00FF88] font-mono break-all">
+            <div className="relative bg-muted/30 border border-border/50 rounded-xl p-4">
+              <code className="text-xs text-plum dark:text-peach font-mono break-all">
                 {showKey ? privateKey : '•'.repeat(64)}
               </code>
               <div className="flex gap-2 mt-3">
-                <button onClick={() => setShowKey(!showKey)} className="glass px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-white/10">
+                <button
+                  onClick={() => setShowKey(!showKey)}
+                  className="glass px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-plum/10 dark:hover:bg-white/10 border border-border/40"
+                >
                   {showKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                   {showKey ? 'Hide' : 'Show'}
                 </button>
                 <button
                   onClick={() => { navigator.clipboard.writeText(privateKey); toast.success('Copied!') }}
-                  className="glass px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-white/10"
+                  className="glass px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-plum/10 dark:hover:bg-white/10 border border-border/40"
                 >
                   <Copy className="w-3 h-3" /> Copy
                 </button>
                 <button
                   onClick={() => { setPrivateKey(null); setShowExport(false) }}
-                  className="glass px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-white/10 ml-auto"
+                  className="glass px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/50 border border-border/40 ml-auto"
                 >
                   Done
                 </button>
@@ -169,19 +183,29 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Transaction history */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16 }}
+      >
         <h3 className="font-semibold mb-4">Transaction History</h3>
         {transactions.length === 0 ? (
-          <div className="glass rounded-xl p-8 text-center">
+          <div className="glass rounded-2xl p-8 text-center border border-border/40">
             <p className="text-muted-foreground text-sm">No transactions yet.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="glass rounded-xl p-4 flex items-center justify-between">
+            {transactions.map((tx, i) => (
+              <motion.div
+                key={tx.id}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="glass rounded-xl p-4 flex items-center justify-between border border-border/40 hover:border-mauve/30 transition-colors"
+              >
                 <div>
                   <div className="text-sm font-medium">{txTypeLabel[tx.type] ?? tx.type}</div>
                   <div className="text-xs text-muted-foreground font-mono mt-0.5">
@@ -193,7 +217,7 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
                 </div>
                 <div className="text-right">
                   {tx.gen_amount && (
-                    <div className="text-sm font-semibold text-[#00FF88]">
+                    <div className="text-sm font-semibold text-plum dark:text-peach">
                       {tx.gen_amount} GEN
                     </div>
                   )}
@@ -201,11 +225,11 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
                     {tx.status}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
+import { ThemeProvider } from 'next-themes'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -19,20 +20,24 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
-        <Toaster
-          theme="dark"
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: 'hsl(0 0% 6%)',
-              border: '1px solid hsl(0 0% 12%)',
-              color: 'hsl(0 0% 98%)',
-            },
-          }}
-        />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange={false}
+        >
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              classNames: {
+                toast: 'glass border border-border text-foreground',
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   )

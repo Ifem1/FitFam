@@ -13,11 +13,11 @@ export default async function PlansPage() {
     .order('created_at', { ascending: false })
 
   const statusConfig: Record<string, { label: string; color: string }> = {
-    pending: { label: 'Validators Reaching Consensus...', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' },
-    consensus_reached: { label: 'Ready to Pay', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20' },
-    locked: { label: 'Locked — Pay to Unlock', color: 'text-orange-400 bg-orange-400/10 border-orange-400/20' },
-    unlocked: { label: 'Unlocked & Active', color: 'text-[#00FF88] bg-[#00FF88]/10 border-[#00FF88]/20' },
-    failed: { label: 'Failed', color: 'text-red-400 bg-red-400/10 border-red-400/20' },
+    pending:           { label: 'Validators Reaching Consensus...', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+    consensus_reached: { label: 'Ready to Pay',                     color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
+    locked:            { label: 'Locked — Pay to Unlock',           color: 'text-mauve bg-mauve/10 border-mauve/20' },
+    unlocked:          { label: 'Unlocked & Active',                 color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10 border-plum/20 dark:border-peach/20' },
+    failed:            { label: 'Failed',                            color: 'text-destructive bg-destructive/10 border-destructive/20' },
   }
 
   return (
@@ -29,22 +29,22 @@ export default async function PlansPage() {
         </div>
         <Link
           href="/dashboard/new-plan"
-          className="flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-4 py-2.5 rounded-lg hover:bg-[#00E87A] transition-all glow-sm text-sm"
+          className="flex items-center gap-2 btn-primary px-4 py-2.5 text-sm glow-sm"
         >
           <PlusCircle className="w-4 h-4" /> New Plan
         </Link>
       </div>
 
       {!plans || plans.length === 0 ? (
-        <div className="glass rounded-2xl p-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#00FF88]/10 flex items-center justify-center mx-auto mb-4">
-            <PlusCircle className="w-8 h-8 text-[#00FF88]" />
+        <div className="glass rounded-2xl p-16 text-center border border-border/40">
+          <div className="w-16 h-16 rounded-2xl bg-plum/10 dark:bg-peach/10 flex items-center justify-center mx-auto mb-4">
+            <PlusCircle className="w-8 h-8 text-plum dark:text-peach" />
           </div>
           <h3 className="font-semibold mb-2">No plans yet</h3>
           <p className="text-muted-foreground text-sm mb-6">Submit your fitness profile to generate your first plan.</p>
           <Link
             href="/dashboard/new-plan"
-            className="inline-flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-6 py-3 rounded-lg hover:bg-[#00E87A] text-sm"
+            className="inline-flex items-center gap-2 btn-primary px-6 py-3 text-sm"
           >
             Create First Plan
           </Link>
@@ -52,12 +52,12 @@ export default async function PlansPage() {
       ) : (
         <div className="space-y-4">
           {plans.map((plan) => {
-            const status = statusConfig[plan.status] ?? { label: plan.status, color: 'text-muted-foreground bg-white/5' }
+            const status = statusConfig[plan.status] ?? { label: plan.status, color: 'text-muted-foreground bg-muted border-border' }
             return (
               <Link
                 key={plan.id}
                 href={`/dashboard/plans/${plan.id}`}
-                className="flex items-center justify-between glass rounded-2xl p-6 hover:bg-white/5 transition-all group"
+                className="flex items-center justify-between glass rounded-2xl p-6 border border-border/40 hover:border-mauve/30 transition-all group card-hover"
               >
                 <div className="space-y-2">
                   <div className="font-semibold">{plan.duration_months}-Month Fitness Plan</div>
@@ -73,7 +73,7 @@ export default async function PlansPage() {
                     Created {new Date(plan.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   </div>
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-white transition-colors" />
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               </Link>
             )
           })}

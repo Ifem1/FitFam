@@ -2,6 +2,8 @@
 
 import type { User } from '@supabase/supabase-js'
 import { Bell } from 'lucide-react'
+import { motion } from 'framer-motion'
+import ThemeToggle from '@/components/shared/ThemeToggle'
 
 interface TopbarProps {
   user: User
@@ -13,19 +15,27 @@ export default function Topbar({ user }: TopbarProps) {
     : 'FF'
 
   return (
-    <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 sticky top-0 z-30 bg-background/95 backdrop-blur-sm">
+    <header className="h-16 border-b border-border/50 flex items-center justify-between px-6 sticky top-0 z-30 bg-linen/95 dark:bg-plum-black/95 backdrop-blur-sm">
       <div>
         <p className="text-xs text-muted-foreground">Welcome back,</p>
-        <p className="text-sm font-medium">{user.email}</p>
+        <p className="text-sm font-medium truncate max-w-[200px]">{user.email}</p>
       </div>
 
       <div className="flex items-center gap-3">
-        <button className="w-9 h-9 rounded-lg glass flex items-center justify-center text-muted-foreground hover:text-white transition-colors relative">
+        <ThemeToggle />
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          className="w-9 h-9 rounded-xl glass flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors relative"
+        >
           <Bell className="w-4 h-4" />
-        </button>
-        <div className="w-9 h-9 rounded-full bg-[#00FF88]/20 flex items-center justify-center text-sm font-bold text-[#00FF88]">
+        </motion.button>
+        <motion.div
+          whileHover={{ scale: 1.08 }}
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-plum to-mauve dark:from-mauve dark:to-peach flex items-center justify-center text-sm font-bold text-linen cursor-pointer"
+        >
           {initials}
-        </div>
+        </motion.div>
       </div>
     </header>
   )

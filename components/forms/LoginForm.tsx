@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -34,7 +35,12 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="glass rounded-2xl p-8 w-full max-w-md">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="glass rounded-2xl p-8 w-full max-w-md border border-border/50"
+    >
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
         <p className="text-muted-foreground text-sm">
@@ -51,7 +57,7 @@ export default function LoginForm() {
             placeholder="you@example.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30 transition-all"
+            className="input-field"
           />
         </div>
 
@@ -64,22 +70,24 @@ export default function LoginForm() {
               placeholder="Your password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30 transition-all"
+              className="input-field pr-10"
             />
             <button
               type="button"
               onClick={() => setShowPass(!showPass)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
           type="submit"
           disabled={loading}
-          className="w-full bg-[#00FF88] text-black font-semibold py-3 rounded-lg hover:bg-[#00E87A] transition-all glow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full btn-primary py-3 glow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
@@ -89,15 +97,15 @@ export default function LoginForm() {
           ) : (
             'Log In'
           )}
-        </button>
+        </motion.button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-[#00FF88] hover:underline">
+        <Link href="/signup" className="text-plum dark:text-peach hover:underline font-medium">
           Sign Up
         </Link>
       </p>
-    </div>
+    </motion.div>
   )
 }

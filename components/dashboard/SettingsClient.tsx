@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
 
 export default function SettingsClient({ email }: { email: string }) {
   const supabase = createClient()
@@ -37,16 +38,25 @@ export default function SettingsClient({ email }: { email: string }) {
       </div>
 
       {/* Account info */}
-      <div className="glass rounded-2xl p-6 space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass rounded-2xl p-6 space-y-4 border border-border/50"
+      >
         <h2 className="font-semibold">Account</h2>
         <div>
-          <label className="text-xs text-muted-foreground">Email</label>
+          <label className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Email</label>
           <p className="text-sm font-medium mt-1">{email}</p>
         </div>
-      </div>
+      </motion.div>
 
       {/* Change password */}
-      <div className="glass rounded-2xl p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="glass rounded-2xl p-6 border border-border/50"
+      >
         <h2 className="font-semibold mb-4">Change Password</h2>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
@@ -56,7 +66,7 @@ export default function SettingsClient({ email }: { email: string }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Min. 8 characters"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#00FF88]/50"
+              className="input-field"
             />
           </div>
           <div>
@@ -66,19 +76,21 @@ export default function SettingsClient({ email }: { email: string }) {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Repeat password"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#00FF88]/50"
+              className="input-field"
             />
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={loading || !newPassword}
-            className="flex items-center gap-2 bg-[#00FF88] text-black font-semibold px-4 py-2.5 rounded-lg text-sm hover:bg-[#00E87A] disabled:opacity-50"
+            className="flex items-center gap-2 btn-primary px-5 py-2.5 text-sm disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Update Password
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Zap } from 'lucide-react'
+import Logo from '@/components/shared/Logo'
 
 export default function Footer() {
   return (
@@ -9,8 +9,8 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4 group w-fit">
-              <div className="w-7 h-7 rounded-lg bg-plum dark:bg-peach flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Zap className="w-4 h-4 text-linen dark:text-plum-black" fill="currentColor" />
+              <div className="group-hover:scale-110 transition-transform">
+                <Logo size={28} />
               </div>
               <span className="font-bold text-lg">
                 Fit<span className="text-plum dark:text-peach">Fam</span>

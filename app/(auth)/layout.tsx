@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Zap } from 'lucide-react'
+import Logo from '@/components/shared/Logo'
 import FloatingOrbs from '@/components/shared/FloatingOrbs'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -13,8 +13,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Top bar */}
       <div className="p-6 relative z-10">
         <Link href="/" className="flex items-center gap-2 w-fit group">
-          <div className="w-7 h-7 rounded-lg bg-plum dark:bg-peach flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Zap className="w-4 h-4 text-linen dark:text-plum-black" fill="currentColor" />
+          <div className="group-hover:scale-110 transition-transform">
+            <Logo size={30} />
           </div>
           <span className="font-bold text-lg">
             Fit<span className="text-plum dark:text-peach">Fam</span>

@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, ClipboardList, PlusCircle, Wallet, Settings, Zap, LogOut,
+  LayoutDashboard, ClipboardList, PlusCircle, Wallet, Settings, LogOut,
 } from 'lucide-react'
+import Logo from '@/components/shared/Logo'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -34,11 +35,10 @@ export default function Sidebar() {
       <div className="p-6 border-b border-border/40">
         <Link href="/" className="flex items-center gap-2 group w-fit">
           <motion.div
-            whileHover={{ rotate: 15, scale: 1.1 }}
+            whileHover={{ rotate: 8, scale: 1.08 }}
             transition={{ type: 'spring', stiffness: 300 }}
-            className="w-7 h-7 rounded-lg bg-plum dark:bg-peach flex items-center justify-center"
           >
-            <Zap className="w-4 h-4 text-linen dark:text-plum-black" fill="currentColor" />
+            <Logo size={30} />
           </motion.div>
           <span className="font-bold text-lg">
             Fit<span className="text-plum dark:text-peach">Fam</span>

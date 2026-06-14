@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, Zap } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ThemeToggle from '@/components/shared/ThemeToggle'
+import Logo from '@/components/shared/Logo'
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
@@ -26,11 +27,10 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <motion.div
-            whileHover={{ rotate: 15, scale: 1.1 }}
+            whileHover={{ rotate: 8, scale: 1.08 }}
             transition={{ type: 'spring', stiffness: 300 }}
-            className="w-8 h-8 rounded-lg bg-plum dark:bg-peach flex items-center justify-center"
           >
-            <Zap className="w-5 h-5 text-linen dark:text-plum-black" fill="currentColor" />
+            <Logo size={34} />
           </motion.div>
           <span className="font-bold text-xl tracking-tight">
             Fit<span className="text-plum dark:text-peach">Fam</span>

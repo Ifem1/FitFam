@@ -69,6 +69,9 @@ serve(async (req) => {
       profile.fitness_level,
       profile.goal_type,
       duration_months,
+      profile.allergies ?? '',
+      profile.preferred_proteins ?? '',
+      profile.region ?? '',
     ])
 
     // Create plan record in DB (status=pending until consensus)

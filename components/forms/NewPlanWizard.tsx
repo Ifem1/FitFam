@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronRight, ChevronLeft, Loader2, Check } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Loader2, Check, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
@@ -13,14 +13,20 @@ type FitnessLevel = 'beginner' | 'intermediate' | 'advanced'
 type GoalType = 'lose_weight' | 'gain_weight' | 'build_muscle' | 'improve_endurance' | 'general_wellness'
 type Duration = 1 | 3 | 6
 
+const MAX_GOALS = 3
+
 interface FormData {
   age: string
   weight: string
   weight_unit: WeightUnit
   height: string
   height_unit: HeightUnit
-  goal_type: GoalType | ''
+  goal_types: GoalType[]
   fitness_level: FitnessLevel | ''
+  allergies: string[]
+  allergy_other: string
+  preferred_proteins: string[]
+  region: string
   duration_months: Duration | null
 }
 
@@ -46,6 +52,39 @@ const DURATIONS = [
   { value: 6, label: '6 Months',  desc: 'Full transformation' },
 ] as const
 
+const ALLERGIES = [
+  { value: 'nuts',      label: 'Nuts' },
+  { value: 'dairy',     label: 'Dairy' },
+  { value: 'gluten',    label: 'Gluten' },
+  { value: 'shellfish', label: 'Shellfish' },
+  { value: 'eggs',      label: 'Eggs' },
+  { value: 'soy',       label: 'Soy' },
+] as const
+
+const PROTEINS = [
+  { value: 'chicken',       label: 'Chicken' },
+  { value: 'beef',          label: 'Beef' },
+  { value: 'fish',          label: 'Fish' },
+  { value: 'eggs',          label: 'Eggs' },
+  { value: 'tofu_tempeh',   label: 'Tofu / Tempeh' },
+  { value: 'lentils_beans', label: 'Lentils / Beans' },
+  { value: 'dairy',         label: 'Dairy (yogurt, cheese)' },
+  { value: 'pork',          label: 'Pork' },
+] as const
+
+const REGIONS = [
+  { value: '',              label: 'Prefer not to say' },
+  { value: 'north_america', label: 'North America' },
+  { value: 'europe',        label: 'Europe' },
+  { value: 'west_africa',   label: 'West Africa' },
+  { value: 'east_africa',   label: 'East Africa' },
+  { value: 'south_asia',    label: 'South Asia' },
+  { value: 'east_asia',     label: 'East Asia' },
+  { value: 'latin_america', label: 'Latin America' },
+  { value: 'middle_east',   label: 'Middle East' },
+  { value: 'caribbean',     label: 'Caribbean' },
+] as const
+
 export default function NewPlanWizard() {
   const supabase = createClient()
   const router = useRouter()
@@ -54,22 +93,32 @@ export default function NewPlanWizard() {
   const [form, setForm] = useState<FormData>({
     age: '', weight: '', weight_unit: 'kg',
     height: '', height_unit: 'cm',
-    goal_type: '', fitness_level: '', duration_months: null,
+    goal_types: [], fitness_level: '',
+    allergies: [], allergy_other: '',
+    preferred_proteins: [], region: '',
+    duration_months: null,
   })
 
-  const steps = ['Personal Info', 'Goal', 'Fitness Level', 'Duration', 'Review & Submit']
+  const steps = ['Personal Info', 'Goals', 'Dietary Preferences', 'Fitness Level', 'Duration', 'Review & Submit']
 
   const canNext = () => {
     if (step === 1) return form.age && form.weight && form.height
-    if (step === 2) return form.goal_type !== ''
-    if (step === 3) return form.fitness_level !== ''
-    if (step === 4) return form.duration_months !== null
+    if (step === 2) return form.goal_types.length > 0
+    if (step === 3) return true // all optional
+    if (step === 4) return form.fitness_level !== ''
+    if (step === 5) return form.duration_months !== null
     return true
   }
+
+  const toggleChip = <T extends string>(arr: T[], value: T): T[] =>
+    arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
 
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
+      const allAllergies = [...form.allergies]
+      if (form.allergy_other.trim()) allAllergies.push(form.allergy_other.trim())
+
       const { data: profileData, error: profileError } = await supabase.functions.invoke('update-profile', {
         body: {
           age: parseInt(form.age),
@@ -78,7 +127,10 @@ export default function NewPlanWizard() {
           height: parseFloat(form.height),
           height_unit: form.height_unit,
           fitness_level: form.fitness_level,
-          goal_type: form.goal_type,
+          goal_type: form.goal_types,
+          allergies: allAllergies.join(','),
+          preferred_proteins: form.preferred_proteins.join(','),
+          region: form.region,
         },
       })
       if (profileError) throw new Error('Failed to save profile')
@@ -102,6 +154,9 @@ export default function NewPlanWizard() {
     }
   }
 
+  const allAllergiesForReview = [...form.allergies.map(a => ALLERGIES.find(x => x.value === a)?.label ?? a)]
+  if (form.allergy_other.trim()) allAllergiesForReview.push(form.allergy_other.trim())
+
   return (
     <div className="glass rounded-2xl overflow-hidden border border-border/50">
       {/* Step indicator */}
@@ -124,7 +179,7 @@ export default function NewPlanWizard() {
                 {i + 1 < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
               </motion.div>
               {i < steps.length - 1 && (
-                <div className={`h-px w-8 sm:w-10 mx-1 transition-all duration-500 ${
+                <div className={`h-px w-6 sm:w-8 mx-0.5 transition-all duration-500 ${
                   i + 1 < step ? 'bg-plum dark:bg-peach' : 'bg-border'
                 }`} />
               )}
@@ -213,36 +268,135 @@ export default function NewPlanWizard() {
             </div>
           )}
 
-          {/* Step 2: Goal */}
+          {/* Step 2: Goals (multi-select, 1-3) */}
           {step === 2 && (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground mb-2">What is your primary fitness goal?</p>
-              {GOALS.map((g) => (
-                <motion.button
-                  key={g.value} type="button" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                  onClick={() => setForm({ ...form, goal_type: g.value as GoalType })}
-                  className={`w-full text-left p-4 rounded-xl border transition-all ${
-                    form.goal_type === g.value
-                      ? 'border-plum dark:border-peach bg-plum/8 dark:bg-peach/8'
-                      : 'border-border/50 hover:border-mauve/40 bg-muted/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">{g.label}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{g.desc}</div>
+              <p className="text-sm text-muted-foreground mb-2">
+                What are your fitness goals? Pick one or up to {MAX_GOALS}.
+              </p>
+              {GOALS.map((g) => {
+                const selected = form.goal_types.includes(g.value as GoalType)
+                const atMax = form.goal_types.length >= MAX_GOALS && !selected
+                return (
+                  <motion.button
+                    key={g.value} type="button" whileHover={atMax ? {} : { scale: 1.01 }} whileTap={atMax ? {} : { scale: 0.99 }}
+                    onClick={() => {
+                      if (selected) {
+                        setForm({ ...form, goal_types: form.goal_types.filter(t => t !== g.value) })
+                      } else if (!atMax) {
+                        setForm({ ...form, goal_types: [...form.goal_types, g.value as GoalType] })
+                      }
+                    }}
+                    disabled={atMax}
+                    className={`w-full text-left p-4 rounded-xl border transition-all ${
+                      selected
+                        ? 'border-plum dark:border-peach bg-plum/8 dark:bg-peach/8'
+                        : atMax
+                        ? 'border-border/30 bg-muted/10 opacity-50 cursor-not-allowed'
+                        : 'border-border/50 hover:border-mauve/40 bg-muted/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-sm">{g.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{g.desc}</div>
+                      </div>
+                      {selected && (
+                        <Check className="w-4 h-4 text-plum dark:text-peach shrink-0" />
+                      )}
                     </div>
-                    {form.goal_type === g.value && (
-                      <Check className="w-4 h-4 text-plum dark:text-peach shrink-0" />
-                    )}
-                  </div>
-                </motion.button>
-              ))}
+                  </motion.button>
+                )
+              })}
+              {form.goal_types.length > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  {form.goal_types.length}/{MAX_GOALS} selected — first goal is your primary focus
+                </p>
+              )}
             </div>
           )}
 
-          {/* Step 3: Fitness Level */}
+          {/* Step 3: Dietary Preferences (all optional) */}
           {step === 3 && (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                These help us tailor your nutrition plan. All fields are optional — skip anything that doesn't apply.
+              </p>
+
+              {/* Allergies */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Allergies / Intolerances</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {ALLERGIES.map((a) => {
+                    const selected = form.allergies.includes(a.value)
+                    return (
+                      <button
+                        key={a.value} type="button"
+                        onClick={() => setForm({ ...form, allergies: toggleChip(form.allergies, a.value) })}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          selected
+                            ? 'border-plum dark:border-peach bg-plum/10 dark:bg-peach/10 text-plum dark:text-peach'
+                            : 'border-border/50 text-muted-foreground hover:border-mauve/40'
+                        }`}
+                      >
+                        {a.label}
+                        {selected && <X className="w-3 h-3" />}
+                      </button>
+                    )
+                  })}
+                </div>
+                <input
+                  type="text" placeholder="Other allergies (e.g. peanuts, sesame)"
+                  value={form.allergy_other}
+                  onChange={(e) => setForm({ ...form, allergy_other: e.target.value })}
+                  className="input-field text-sm"
+                />
+              </div>
+
+              {/* Preferred Proteins */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Preferred Proteins</label>
+                <p className="text-xs text-muted-foreground mb-2">Select the proteins you enjoy eating most</p>
+                <div className="flex flex-wrap gap-2">
+                  {PROTEINS.map((p) => {
+                    const selected = form.preferred_proteins.includes(p.value)
+                    return (
+                      <button
+                        key={p.value} type="button"
+                        onClick={() => setForm({ ...form, preferred_proteins: toggleChip(form.preferred_proteins, p.value) })}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          selected
+                            ? 'border-plum dark:border-peach bg-plum/10 dark:bg-peach/10 text-plum dark:text-peach'
+                            : 'border-border/50 text-muted-foreground hover:border-mauve/40'
+                        }`}
+                      >
+                        {p.label}
+                        {selected && <X className="w-3 h-3" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Region */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Region</label>
+                <p className="text-xs text-muted-foreground mb-2">Helps us suggest locally available foods</p>
+                <select
+                  value={form.region}
+                  onChange={(e) => setForm({ ...form, region: e.target.value })}
+                  className="input-field text-sm"
+                >
+                  {REGIONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Fitness Level */}
+          {step === 4 && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground mb-2">What is your current fitness level?</p>
               {LEVELS.map((l) => (
@@ -269,8 +423,8 @@ export default function NewPlanWizard() {
             </div>
           )}
 
-          {/* Step 4: Duration */}
-          {step === 4 && (
+          {/* Step 5: Duration */}
+          {step === 5 && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground mb-2">How long do you want your plan?</p>
               {DURATIONS.map((d) => (
@@ -298,8 +452,8 @@ export default function NewPlanWizard() {
             </div>
           )}
 
-          {/* Step 5: Review */}
-          {step === 5 && (
+          {/* Step 6: Review */}
+          {step === 6 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground mb-4">Review your profile before submitting to GenLayer.</p>
               <div className="space-y-0 rounded-xl overflow-hidden border border-border/40">
@@ -307,8 +461,11 @@ export default function NewPlanWizard() {
                   { label: 'Age',           value: `${form.age} years` },
                   { label: 'Weight',        value: `${form.weight} ${form.weight_unit}` },
                   { label: 'Height',        value: `${form.height} ${form.height_unit}` },
-                  { label: 'Goal',          value: GOALS.find(g => g.value === form.goal_type)?.label ?? '' },
+                  { label: 'Goal(s)',       value: form.goal_types.map(g => GOALS.find(x => x.value === g)?.label).filter(Boolean).join(', ') },
                   { label: 'Fitness Level', value: LEVELS.find(l => l.value === form.fitness_level)?.label ?? '' },
+                  { label: 'Allergies',     value: allAllergiesForReview.length > 0 ? allAllergiesForReview.join(', ') : 'None' },
+                  { label: 'Proteins',      value: form.preferred_proteins.length > 0 ? form.preferred_proteins.map(p => PROTEINS.find(x => x.value === p)?.label).filter(Boolean).join(', ') : 'No preference' },
+                  { label: 'Region',        value: REGIONS.find(r => r.value === form.region)?.label ?? 'Not specified' },
                   { label: 'Plan Duration', value: `${form.duration_months} Month${form.duration_months !== 1 ? 's' : ''}` },
                 ].map((row, i) => (
                   <div
@@ -318,7 +475,7 @@ export default function NewPlanWizard() {
                     }`}
                   >
                     <span className="text-muted-foreground">{row.label}</span>
-                    <span className="font-medium">{row.value}</span>
+                    <span className="font-medium text-right max-w-[60%]">{row.value}</span>
                   </div>
                 ))}
               </div>
@@ -336,7 +493,7 @@ export default function NewPlanWizard() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Your profile will be submitted to the GenLayer Intelligent Contract. Validators will reach consensus on your plan (30s–2min). You pay GEN tokens only after your plan is ready.
+                Your profile will be submitted to the GenLayer Intelligent Contract. Validators will reach consensus on your plan (30s-2min). You pay GEN tokens only after your plan is ready.
               </p>
             </div>
           )}
@@ -360,11 +517,11 @@ export default function NewPlanWizard() {
           whileHover={canNext() ? { scale: 1.02 } : {}}
           whileTap={canNext() ? { scale: 0.97 } : {}}
           type="button"
-          onClick={step < 5 ? () => setStep(step + 1) : handleSubmit}
+          onClick={step < 6 ? () => setStep(step + 1) : handleSubmit}
           disabled={!canNext() || submitting}
           className="flex items-center gap-2 btn-primary px-6 py-2.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {step < 5 ? (
+          {step < 6 ? (
             <>Next <ChevronRight className="w-4 h-4" /></>
           ) : submitting ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Submitting to GenLayer...</>

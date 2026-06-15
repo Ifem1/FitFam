@@ -21,6 +21,10 @@ export function usePlanStatus(planId: string | null): PlanStatusResult {
 
   const fetchStatus = useCallback(async () => {
     if (!planId) return
+
+    // Trigger the poll-consensus Edge Function so it checks GenLayer and updates the DB
+    await supabase.functions.invoke('poll-consensus').catch(() => {})
+
     const { data } = await supabase
       .from('plans')
       .select('status, contract_plan_id')

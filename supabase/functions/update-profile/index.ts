@@ -23,9 +23,10 @@ serve(async (req) => {
     if (authError || !user) throw new Error('Invalid token')
 
     const body = await req.json()
-    const { age, weight, weight_unit, height, height_unit, fitness_level, goal_type } = body
+    const { age, weight, weight_unit, height, height_unit, fitness_level, goal_type,
+            allergies, preferred_proteins, region } = body
 
-    // Validate inputs
+    // Validate required fields
     if (!age || !weight || !height || !fitness_level || !goal_type) {
       throw new Error('Missing required profile fields')
     }
@@ -35,9 +36,24 @@ serve(async (req) => {
     if (!['beginner', 'intermediate', 'advanced'].includes(fitness_level)) {
       throw new Error('Invalid fitness level')
     }
-    if (!['lose_weight', 'gain_weight', 'build_muscle', 'improve_endurance', 'general_wellness'].includes(goal_type)) {
-      throw new Error('Invalid goal type')
+
+    // Goals: accept array or comma-separated string, 1-3 goals
+    const validGoals = ['lose_weight', 'gain_weight', 'build_muscle', 'improve_endurance', 'general_wellness']
+    const goals = Array.isArray(goal_type) ? goal_type : String(goal_type).split(',')
+    if (goals.length < 1 || goals.length > 3) throw new Error('Choose 1 to 3 goal tracks')
+    if (new Set(goals).size !== goals.length) throw new Error('Duplicate goals not allowed')
+    for (const g of goals) {
+      if (!validGoals.includes(g.trim())) throw new Error(`Invalid goal type: ${g}`)
     }
+    const goalTypeStr = goals.map((g: string) => g.trim()).join(',')
+
+    // Sanitise optional dietary preference fields (all stored as comma-separated strings)
+    const allergiesStr = typeof allergies === 'string' ? allergies.trim().slice(0, 200) : ''
+    const proteinsStr = typeof preferred_proteins === 'string' ? preferred_proteins.trim().slice(0, 200) : ''
+
+    const validRegions = ['', 'north_america', 'europe', 'west_africa', 'east_africa',
+                          'south_asia', 'east_asia', 'latin_america', 'middle_east', 'caribbean']
+    const regionStr = validRegions.includes(region ?? '') ? (region ?? '') : ''
 
     const { data: profile, error } = await supabase
       .from('fitness_profiles')
@@ -49,7 +65,10 @@ serve(async (req) => {
         height: parseFloat(String(height)),
         height_unit,
         fitness_level,
-        goal_type,
+        goal_type: goalTypeStr,
+        allergies: allergiesStr,
+        preferred_proteins: proteinsStr,
+        region: regionStr,
       })
       .select()
       .single()

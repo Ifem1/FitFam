@@ -191,13 +191,32 @@ export default function PlanDetailClient({ plan }: Props) {
           animate={{ opacity: 1 }}
           className="glass rounded-2xl p-10 text-center border border-mauve/30"
         >
-          <Loader2 className="w-10 h-10 animate-spin text-plum dark:text-peach mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Loading Your Plan</h2>
-          <p className="text-muted-foreground text-sm">
-            {loadingContent
-              ? 'Fetching your personalized fitness plan from the blockchain...'
-              : 'Plan content is being prepared. Please refresh the page.'}
-          </p>
+          {loadingContent ? (
+            <>
+              <Loader2 className="w-10 h-10 animate-spin text-plum dark:text-peach mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Loading Your Plan</h2>
+              <p className="text-muted-foreground text-sm">
+                Fetching your personalized fitness plan from the blockchain...
+              </p>
+            </>
+          ) : (
+            <>
+              <Lock className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Plan Content Loading</h2>
+              <p className="text-muted-foreground text-sm mb-6">
+                Your plan is unlocked but the blockchain is still syncing the content.
+                This can take a few minutes on StudioNet.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={fetchPlanContent}
+                className="inline-flex items-center gap-2 btn-primary px-6 py-3 text-sm"
+              >
+                <Loader2 className="w-4 h-4" /> Retry Loading
+              </motion.button>
+            </>
+          )}
         </motion.div>
       )}
 

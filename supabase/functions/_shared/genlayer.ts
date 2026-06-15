@@ -63,7 +63,6 @@ export async function callContractView(
     address: CONTRACT_ADDRESS,
     functionName: method,
     args,
-    stateStatus: 'accepted',
   })
   console.log(`genlayer: readContract result=`, JSON.stringify(result)?.slice(0, 500))
   return result

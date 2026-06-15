@@ -127,8 +127,45 @@ serve(async (req) => {
       }
     }
 
+    // Also try to fetch content for unlocked plans that don't have content yet
+    let contentFetched = 0
+    try {
+      const { data: unlockedNoContent } = await supabase
+        .from('plans')
+        .select('id, contract_plan_id')
+        .eq('status', 'unlocked')
+        .is('plan_content', null)
+        .not('contract_plan_id', 'is', null)
+        .limit(3)
+
+      if (unlockedNoContent && unlockedNoContent.length > 0) {
+        const { callContractView } = await import('../_shared/genlayer.ts')
+        for (const uPlan of unlockedNoContent) {
+          try {
+            const onChain = await callContractView('get_plan', [uPlan.contract_plan_id]) as Record<string, unknown>
+            const raw = onChain?.plan_content
+            if (raw) {
+              let parsed: Record<string, unknown> = {}
+              if (typeof raw === 'string') {
+                try { parsed = JSON.parse(raw) } catch { parsed = { raw } }
+              } else if (typeof raw === 'object') {
+                parsed = raw as Record<string, unknown>
+              }
+              await supabase.from('plans').update({ plan_content: parsed }).eq('id', uPlan.id)
+              contentFetched++
+              console.log(`poll-consensus: fetched content for plan ${uPlan.id}`)
+            }
+          } catch {
+            // State not propagated yet — will retry next poll
+          }
+        }
+      }
+    } catch (contentErr) {
+      console.error('poll-consensus: content fetch error:', contentErr)
+    }
+
     return new Response(
-      JSON.stringify({ processed, pending: pendingPlans.length }),
+      JSON.stringify({ processed, pending: pendingPlans.length, contentFetched }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

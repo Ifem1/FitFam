@@ -31,14 +31,21 @@ serve(async (_req) => {
         const receipt = await getTransactionReceipt(plan.contract_transaction_hash) as Record<string, unknown> | null
         if (!receipt) continue
 
-        const status = receipt.status as string | undefined
+        // genlayer-js shape: { txExecutionResultName, consensusData: { leaderReceipt: { returnValue, ... } }, ... }
+        const execResult = receipt.txExecutionResultName as string | undefined
+        const consensusStatus = receipt.status as string | undefined
+        const status = execResult ?? consensusStatus
 
-        // GenLayer terminal statuses: FINALIZED, ACCEPTED, FAILED, REJECTED
-        if (status === 'FINALIZED' || status === 'ACCEPTED') {
-          // Extract the on-chain plan_id returned by submit_fitness_profile
-          // GenLayer returns the return value in receipt.result
-          const contractPlanId = receipt.result !== undefined && receipt.result !== null
-            ? String(receipt.result)
+        // Terminal statuses across SDK versions: FINISHED_WITH_RETURN, FINALIZED, ACCEPTED
+        const isSuccess = status === 'FINISHED_WITH_RETURN' || status === 'FINALIZED' || status === 'ACCEPTED'
+        const isFailure = status === 'FINISHED_WITH_ERROR' || status === 'FAILED' || status === 'REJECTED'
+
+        if (isSuccess) {
+          const consensusData = receipt.consensusData as Record<string, unknown> | undefined
+          const leaderReceipt = consensusData?.leaderReceipt as Record<string, unknown> | undefined
+          const returnValue = leaderReceipt?.returnValue ?? receipt.result
+          const contractPlanId = returnValue !== undefined && returnValue !== null
+            ? String(returnValue)
             : null
 
           await supabase
@@ -56,7 +63,7 @@ serve(async (_req) => {
             .eq('transaction_hash', plan.contract_transaction_hash)
 
           processed++
-        } else if (status === 'FAILED' || status === 'REJECTED') {
+        } else if (isFailure) {
           const errMsg = (receipt.error as string) ?? (receipt.exception as string) ?? 'GenLayer consensus failed'
 
           await supabase

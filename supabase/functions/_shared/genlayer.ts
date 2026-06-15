@@ -1,9 +1,12 @@
-// Shared GenLayer RPC helpers for all Edge Functions
-// Contract: 0x2CE19654c18Ceb2A24Af43Dc82890673225EA71f (StudioNet)
+// Shared GenLayer helpers for all Edge Functions
+// Uses the official genlayer-js@1.1.8 SDK on StudioNet
+// Contract: 0x2CE19654c18Ceb2A24Af43Dc82890673225EA71f
 
-import { ethers } from 'https://esm.sh/ethers@6'
+import { createClient, createAccount } from 'https://esm.sh/genlayer-js@1.1.8'
+import { studionet } from 'https://esm.sh/genlayer-js@1.1.8/chains'
 
-export const CONTRACT_ADDRESS = '0x2CE19654c18Ceb2A24Af43Dc82890673225EA71f'
+export const CONTRACT_ADDRESS =
+  (Deno.env.get('CONTRACT_ADDRESS') ?? '0x2CE19654c18Ceb2A24Af43Dc82890673225EA71f') as `0x${string}`
 
 export function getRpcUrl(): string {
   return Deno.env.get('GENLAYER_RPC_URL') ?? 'https://studio.genlayer.com/api'
@@ -22,44 +25,31 @@ export async function decryptPrivateKey(storedKey: string): Promise<string> {
   return new TextDecoder().decode(decrypted)
 }
 
+// ── Build a GenLayer client bound to a user's private key ────────────────────
+function buildClient(privateKey?: string) {
+  const account = privateKey
+    ? createAccount(privateKey as `0x${string}`)
+    : undefined
+  return createClient({ chain: studionet, account })
+}
+
 // ── Send a write transaction to the GenLayer contract ────────────────────────
 export async function sendContractTransaction(
   privateKey: string,
   method: string,
   args: unknown[]
 ): Promise<string> {
-  const rpcUrl = getRpcUrl()
-  const wallet = new ethers.Wallet(privateKey)
+  const account = createAccount(privateKey as `0x${string}`)
+  const client = createClient({ chain: studionet, account })
 
-  const txParams = {
-    from: wallet.address,
-    to: CONTRACT_ADDRESS,
-    data: JSON.stringify({ method, args }),
-  }
-
-  // Sign the transaction data
-  const messageHash = ethers.keccak256(
-    ethers.toUtf8Bytes(JSON.stringify(txParams))
-  )
-  const signature = await wallet.signMessage(ethers.getBytes(messageHash))
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'gen_sendTransaction',
-    params: [{ ...txParams, signature }],
-    id: Date.now(),
-  }
-
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+  const txHash = await client.writeContract({
+    account,
+    address: CONTRACT_ADDRESS,
+    functionName: method,
+    args,
+    value: BigInt(0),
   })
-
-  const result = await response.json()
-  if (result.error) throw new Error(`GenLayer RPC error: ${result.error.message ?? JSON.stringify(result.error)}`)
-  if (!result.result) throw new Error('No transaction hash returned from GenLayer')
-  return result.result as string
+  return txHash as string
 }
 
 // ── Call a read-only (view) method on the contract ───────────────────────────
@@ -67,49 +57,23 @@ export async function callContractView(
   method: string,
   args: unknown[]
 ): Promise<unknown> {
-  const rpcUrl = getRpcUrl()
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'gen_call',
-    params: [{
-      to: CONTRACT_ADDRESS,
-      data: JSON.stringify({ method, args }),
-    }],
-    id: Date.now(),
-  }
-
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+  const client = buildClient()
+  return await client.readContract({
+    address: CONTRACT_ADDRESS,
+    functionName: method,
+    args,
   })
-
-  const result = await response.json()
-  if (result.error) throw new Error(`GenLayer view error: ${result.error.message ?? JSON.stringify(result.error)}`)
-  return result.result
 }
 
-// ── Get transaction receipt / status ─────────────────────────────────────────
+// ── Get transaction status / receipt ─────────────────────────────────────────
 export async function getTransactionReceipt(txHash: string): Promise<unknown> {
-  const rpcUrl = getRpcUrl()
-
-  const payload = {
-    jsonrpc: '2.0',
-    method: 'gen_getTransactionByHash',
-    params: [txHash],
-    id: Date.now(),
+  const client = buildClient()
+  try {
+    const tx = await client.getTransaction({ hash: txHash as `0x${string}` })
+    return tx
+  } catch {
+    return null
   }
-
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  const result = await response.json()
-  if (result.error) return null
-  return result.result
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // Submit Plan Edge Function
 // Saves fitness profile, calls FitnessPlanContract.submit_fitness_profile on StudioNet
-// Contract: 0xdA6F589f1e27BdA5518fD27C7F64B8FdD2bC4Bc0
+// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { decryptPrivateKey, sendContractTransaction } from '../_shared/genlayer.ts'

@@ -1,4 +1,4 @@
-// Poll Consensus Edge Function — triggered by pg_cron every minute
+// Poll Consensus Edge Function
 // Checks GenLayer for finalized transactions and updates plan status in DB
 // Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -19,7 +19,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Fetch all plans still waiting for consensus
     const { data: pendingPlans, error } = await supabase
       .from('plans')
       .select('id, contract_transaction_hash')
@@ -35,26 +34,62 @@ serve(async (req) => {
 
     for (const plan of pendingPlans) {
       try {
-        const receipt = await getTransactionReceipt(plan.contract_transaction_hash) as Record<string, unknown> | null
-        if (!receipt) continue
+        const receipt = await getTransactionReceipt(plan.contract_transaction_hash)
+        if (!receipt || typeof receipt !== 'object') continue
 
-        // genlayer-js shape: { txExecutionResultName, consensusData: { leaderReceipt: { returnValue, ... } }, ... }
-        const execResult = receipt.txExecutionResultName as string | undefined
-        const consensusStatus = receipt.status as string | undefined
-        const status = execResult ?? consensusStatus
+        const rx = receipt as Record<string, unknown>
+        const numericStatus = typeof rx.status === 'number' ? rx.status : null
+        const consensusData = rx.consensus_data as Record<string, unknown> | undefined
 
-        // Terminal statuses across SDK versions: FINISHED_WITH_RETURN, FINALIZED, ACCEPTED
-        const isSuccess = status === 'FINISHED_WITH_RETURN' || status === 'FINALIZED' || status === 'ACCEPTED'
-        const isFailure = status === 'FINISHED_WITH_ERROR' || status === 'FAILED' || status === 'REJECTED'
+        // Determine success by checking consensus_data.leader_receipt for a "return" status
+        // This is robust regardless of what numeric status code GenLayer uses
+        let isSuccess = false
+        let isFailure = false
+        let contractPlanId: string | null = null
+
+        if (consensusData) {
+          const leaderReceipt = consensusData.leader_receipt as Array<Record<string, unknown>> | undefined
+          if (leaderReceipt && leaderReceipt.length > 0) {
+            const leader = leaderReceipt[0]
+            const result = leader.result as Record<string, unknown> | undefined
+            if (result) {
+              const resultStatus = result.status as string | undefined
+              if (resultStatus === 'return') {
+                isSuccess = true
+                const payload = result.payload as Record<string, unknown> | undefined
+                const readable = payload?.readable as string | undefined
+                if (readable) {
+                  // readable is like "\"0\"" — strip the wrapping quotes
+                  contractPlanId = readable.replace(/^"|"$/g, '')
+                }
+              } else if (resultStatus === 'error' || resultStatus === 'exception') {
+                isFailure = true
+              }
+            }
+          }
+
+          // Also check votes — if majority rejected
+          const votes = consensusData.votes as Record<string, string> | undefined
+          if (votes) {
+            const voteValues = Object.values(votes)
+            const disagreeCount = voteValues.filter(v => v === 'disagree').length
+            if (disagreeCount > voteValues.length / 2) {
+              isFailure = true
+              isSuccess = false
+            }
+          }
+        }
+
+        // Fallback: check numeric status for known terminal states
+        if (!isSuccess && !isFailure && numericStatus !== null) {
+          // Statuses 0-3 are in-progress (PENDING, PROPOSING, COMMITTING, REVEALING)
+          // Status 6 is UNDETERMINED
+          if (numericStatus === 6) isFailure = true
+        }
+
+        console.log(`poll-consensus: plan=${plan.id} numericStatus=${numericStatus} isSuccess=${isSuccess} isFailure=${isFailure} contractPlanId=${contractPlanId}`)
 
         if (isSuccess) {
-          const consensusData = receipt.consensusData as Record<string, unknown> | undefined
-          const leaderReceipt = consensusData?.leaderReceipt as Record<string, unknown> | undefined
-          const returnValue = leaderReceipt?.returnValue ?? receipt.result
-          const contractPlanId = returnValue !== undefined && returnValue !== null
-            ? String(returnValue)
-            : null
-
           await supabase
             .from('plans')
             .update({
@@ -71,13 +106,11 @@ serve(async (req) => {
 
           processed++
         } else if (isFailure) {
-          const errMsg = (receipt.error as string) ?? (receipt.exception as string) ?? 'GenLayer consensus failed'
-
           await supabase
             .from('plans')
             .update({
               status: 'failed',
-              error_message: errMsg,
+              error_message: 'GenLayer consensus failed or was undetermined',
               updated_at: new Date().toISOString(),
             })
             .eq('id', plan.id)
@@ -89,9 +122,8 @@ serve(async (req) => {
 
           processed++
         }
-        // Any other status (PENDING, PROPOSING, etc.) — leave and check again next poll
-      } catch {
-        // Per-plan errors don't abort the loop
+      } catch (perPlanErr) {
+        console.error(`poll-consensus: plan=${plan.id} ERROR:`, perPlanErr)
       }
     }
 
@@ -100,6 +132,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
+    console.error('poll-consensus top-level error:', err)
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

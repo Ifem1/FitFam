@@ -69,9 +69,12 @@ export async function callContractView(
 export async function getTransactionReceipt(txHash: string): Promise<unknown> {
   const client = buildClient()
   try {
+    console.log(`genlayer: getTransaction hash=${txHash}`)
     const tx = await client.getTransaction({ hash: txHash as `0x${string}` })
+    console.log(`genlayer: getTransaction result=`, JSON.stringify(tx))
     return tx
-  } catch {
+  } catch (err) {
+    console.error(`genlayer: getTransaction FAILED hash=${txHash}`, err)
     return null
   }
 }

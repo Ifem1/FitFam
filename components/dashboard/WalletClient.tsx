@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Eye, EyeOff, AlertTriangle, Loader2, CheckCircle } from 'lucide-react'
+import { Copy, Eye, EyeOff, AlertTriangle, Loader2, CheckCircle, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface Transaction {
   id: string
@@ -20,11 +22,32 @@ interface Props {
 }
 
 export default function WalletClient({ walletAddress, transactions }: Props) {
+  const supabase = createClient()
+  const router = useRouter()
   const [showExport, setShowExport] = useState(false)
   const [password, setPassword] = useState('')
   const [privateKey, setPrivateKey] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [settingUpWallet, setSettingUpWallet] = useState(false)
+
+  const handleSetupWallet = async () => {
+    setSettingUpWallet(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not logged in')
+      const { error } = await supabase.functions.invoke('auth-signup', {
+        body: { email: user.email },
+      })
+      if (error) throw new Error(error.message || 'Failed to generate wallet')
+      toast.success('Wallet generated! Refreshing...')
+      router.refresh()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Wallet setup failed')
+    } finally {
+      setSettingUpWallet(false)
+    }
+  }
 
   const copyAddress = () => {
     if (walletAddress) {
@@ -37,18 +60,11 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
     if (!password) { toast.error('Enter your password'); return }
     setLoading(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/export-private-key`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ password }),
-        }
-      )
-      if (!res.ok) throw new Error((await res.json()).message || 'Failed')
-      const { private_key } = await res.json()
-      setPrivateKey(private_key)
+      const { data, error } = await supabase.functions.invoke('export-private-key', {
+        body: { password },
+      })
+      if (error) throw new Error(error.message || 'Failed')
+      setPrivateKey(data.private_key)
       setPassword('')
       toast.success('Private key exported. Store it safely!')
     } catch (err: unknown) {
@@ -97,6 +113,18 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
             </motion.button>
           )}
         </div>
+        {!walletAddress && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleSetupWallet}
+            disabled={settingUpWallet}
+            className="mt-4 flex items-center gap-2 btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
+          >
+            {settingUpWallet ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
+            {settingUpWallet ? 'Generating wallet...' : 'Generate My Wallet'}
+          </motion.button>
+        )}
         <p className="text-xs text-muted-foreground mt-3">
           This wallet is used for all GenLayer contract interactions on StudioNet.
         </p>

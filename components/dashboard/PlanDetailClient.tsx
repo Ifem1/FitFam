@@ -10,6 +10,7 @@ import ConsensusLoader from './ConsensusLoader'
 import PlanRenderer from './PlanRenderer'
 import Link from 'next/link'
 import { usePlanStatus } from '@/hooks/usePlanStatus'
+import { createClient } from '@/lib/supabase/client'
 
 interface Plan {
   id: string
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function PlanDetailClient({ plan }: Props) {
+  const supabase = createClient()
   const router = useRouter()
   const [paying, setPaying] = useState(false)
 
@@ -43,17 +45,10 @@ export default function PlanDetailClient({ plan }: Props) {
   const handlePayAndUnlock = async () => {
     setPaying(true)
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-      const res = await fetch(`${supabaseUrl}/functions/v1/pay-for-plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ plan_id: plan.id }),
+      const { error: payError } = await supabase.functions.invoke('pay-for-plan', {
+        body: { plan_id: plan.id },
       })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error ?? err.message ?? 'Payment failed')
-      }
+      if (payError) throw new Error(payError.message ?? 'Payment failed')
       toast.success('Plan unlocked! Loading your fitness program...')
       refresh()
       router.refresh()

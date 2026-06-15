@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ChevronRight, ChevronLeft, Loader2, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createClient } from '@/lib/supabase/client'
 
 type WeightUnit = 'kg' | 'lbs'
 type HeightUnit = 'cm' | 'ft'
@@ -46,6 +47,7 @@ const DURATIONS = [
 ] as const
 
 export default function NewPlanWizard() {
+  const supabase = createClient()
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -68,43 +70,28 @@ export default function NewPlanWizard() {
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const profileRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/update-profile`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            age: parseInt(form.age),
-            weight: parseFloat(form.weight),
-            weight_unit: form.weight_unit,
-            height: parseFloat(form.height),
-            height_unit: form.height_unit,
-            fitness_level: form.fitness_level,
-            goal_type: form.goal_type,
-          }),
-        }
-      )
-      if (!profileRes.ok) throw new Error('Failed to save profile')
-      const { profile } = await profileRes.json()
+      const { data: profileData, error: profileError } = await supabase.functions.invoke('update-profile', {
+        body: {
+          age: parseInt(form.age),
+          weight: parseFloat(form.weight),
+          weight_unit: form.weight_unit,
+          height: parseFloat(form.height),
+          height_unit: form.height_unit,
+          fitness_level: form.fitness_level,
+          goal_type: form.goal_type,
+        },
+      })
+      if (profileError) throw new Error('Failed to save profile')
+      const { profile } = profileData
 
-      const planRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/submit-plan`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            fitness_profile_id: profile.id,
-            duration_months: form.duration_months,
-          }),
-        }
-      )
-      if (!planRes.ok) {
-        const err = await planRes.json()
-        throw new Error(err.message || 'Failed to submit plan')
-      }
-      const { plan_id } = await planRes.json()
+      const { data: planData, error: planError } = await supabase.functions.invoke('submit-plan', {
+        body: {
+          fitness_profile_id: profile.id,
+          duration_months: form.duration_months,
+        },
+      })
+      if (planError) throw new Error(planError.message || 'Failed to submit plan')
+      const { plan_id } = planData
 
       toast.success('Plan submitted! GenLayer validators are reaching consensus...')
       router.push(`/dashboard/plans/${plan_id}`)

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, TrendingUp, Clock, CheckCircle, Coins } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Plan {
   id: string
@@ -34,6 +35,7 @@ export default function AdminClient({
   pricing: PricingRow[]
   stats: Stats
 }) {
+  const supabase = createClient()
   const [localPricing, setLocalPricing] = useState<Record<number, number>>(
     Object.fromEntries(pricing.map((p) => [p.duration_months, p.price_gen]))
   )
@@ -43,16 +45,10 @@ export default function AdminClient({
     setSaving(true)
     try {
       for (const [duration, price] of Object.entries(localPricing)) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/admin-update-pricing`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ duration_months: parseInt(duration), price_gen: price }),
-          }
-        )
-        if (!res.ok) throw new Error('Failed to update pricing')
+        const { error } = await supabase.functions.invoke('admin-update-pricing', {
+          body: { duration_months: parseInt(duration), price_gen: price },
+        })
+        if (error) throw new Error('Failed to update pricing')
       }
       toast.success('Pricing updated on-chain and in database')
     } catch (err: unknown) {

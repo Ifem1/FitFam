@@ -58,11 +58,15 @@ export async function callContractView(
   args: unknown[]
 ): Promise<unknown> {
   const client = buildClient()
-  return await client.readContract({
+  console.log(`genlayer: readContract method=${method} args=${JSON.stringify(args)} address=${CONTRACT_ADDRESS}`)
+  const result = await client.readContract({
     address: CONTRACT_ADDRESS,
     functionName: method,
     args,
+    stateStatus: 'accepted',
   })
+  console.log(`genlayer: readContract result=`, JSON.stringify(result)?.slice(0, 500))
+  return result
 }
 
 // ── Get transaction status / receipt ─────────────────────────────────────────

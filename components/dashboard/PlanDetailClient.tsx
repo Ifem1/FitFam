@@ -42,6 +42,37 @@ export default function PlanDetailClient({ plan }: Props) {
     }
   }, [status, plan.status, router])
 
+  const [planContent, setPlanContent] = useState<Record<string, unknown> | null>(plan.plan_content)
+  const [loadingContent, setLoadingContent] = useState(false)
+
+  const fetchPlanContent = async () => {
+    setLoadingContent(true)
+    for (let attempt = 0; attempt < 8; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 5000))
+        const { data, error } = await supabase.functions.invoke('get-plan-content', {
+          body: { plan_id: plan.id },
+        })
+        if (error) continue
+        if (data?.plan_content) {
+          setPlanContent(data.plan_content)
+          setLoadingContent(false)
+          return
+        }
+      } catch {
+        // retry
+      }
+    }
+    setLoadingContent(false)
+    toast.error('Plan content is still loading from the blockchain. Please refresh in a moment.')
+  }
+
+  useEffect(() => {
+    if (currentStatus === 'unlocked' && !planContent) {
+      fetchPlanContent()
+    }
+  }, [currentStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePayAndUnlock = async () => {
     setPaying(true)
     try {
@@ -52,6 +83,7 @@ export default function PlanDetailClient({ plan }: Props) {
       toast.success('Plan unlocked! Loading your fitness program...')
       refresh()
       router.refresh()
+      fetchPlanContent()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Payment failed')
     } finally {
@@ -146,12 +178,27 @@ export default function PlanDetailClient({ plan }: Props) {
         </motion.div>
       )}
 
-      {/* Unlocked — render the plan */}
-      {currentStatus === 'unlocked' && plan.plan_content && (
+      {/* Unlocked — render the plan or show loading */}
+      {currentStatus === 'unlocked' && planContent && (
         <PlanRenderer
-          content={plan.plan_content}
+          content={planContent}
           durationMonths={plan.duration_months}
         />
+      )}
+      {currentStatus === 'unlocked' && !planContent && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="glass rounded-2xl p-10 text-center border border-mauve/30"
+        >
+          <Loader2 className="w-10 h-10 animate-spin text-plum dark:text-peach mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Loading Your Plan</h2>
+          <p className="text-muted-foreground text-sm">
+            {loadingContent
+              ? 'Fetching your personalized fitness plan from the blockchain...'
+              : 'Plan content is being prepared. Please refresh the page.'}
+          </p>
+        </motion.div>
       )}
 
       {/* Failed */}

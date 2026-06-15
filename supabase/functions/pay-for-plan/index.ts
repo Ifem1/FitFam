@@ -1,12 +1,12 @@
 // Pay For Plan Edge Function
-// Calls FitnessPlanContract.mark_plan_paid on StudioNet, fetches plan content, unlocks in DB
+// Calls FitnessPlanContract.mark_plan_paid on StudioNet, then marks plan unlocked in DB
+// Plan content is fetched separately via fetch-plan-content
 // Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   decryptPrivateKey,
   sendContractTransaction,
-  callContractView,
 } from '../_shared/genlayer.ts'
 
 const corsHeaders = {
@@ -49,42 +49,35 @@ serve(async (req) => {
     // Get user wallet
     const { data: userRecord } = await supabase
       .from('users')
-      .select('encrypted_private_key')
+      .select('encrypted_private_key, wallet_address')
       .eq('id', user.id)
       .single()
     if (!userRecord?.encrypted_private_key) throw new Error('User wallet not found')
 
     const privateKey = await decryptPrivateKey(userRecord.encrypted_private_key)
 
-    // Call FitnessPlanContract.mark_plan_paid(plan_id: str) on StudioNet
-    const txHash = await sendContractTransaction(privateKey, 'mark_plan_paid', [
-      plan.contract_plan_id,
-    ])
+    console.log(`pay-for-plan: planId=${plan_id} contractPlanId=${plan.contract_plan_id} wallet=${userRecord.wallet_address ?? 'n/a'}`)
 
-    // Read unlocked plan content from chain via get_plan view
-    const onChainPlan = await callContractView('get_plan', [plan.contract_plan_id]) as Record<string, unknown>
-
-    // plan_content is a JSON string inside the plan record — parse it
-    let parsedContent: Record<string, unknown> = {}
-    const rawContent = onChainPlan?.plan_content
-    if (typeof rawContent === 'string') {
-      try {
-        parsedContent = JSON.parse(rawContent)
-      } catch {
-        parsedContent = { raw: rawContent }
-      }
-    } else if (rawContent && typeof rawContent === 'object') {
-      parsedContent = rawContent as Record<string, unknown>
+    // Call mark_plan_paid on-chain
+    let txHash: string
+    try {
+      txHash = await sendContractTransaction(privateKey, 'mark_plan_paid', [
+        plan.contract_plan_id,
+      ])
+      console.log(`pay-for-plan: mark_plan_paid submitted txHash=${txHash}`)
+    } catch (txErr) {
+      console.error(`pay-for-plan: mark_plan_paid FAILED:`, txErr)
+      throw new Error(`Payment transaction failed: ${txErr.message}`)
     }
 
-    // Update plan in DB — unlock it and cache the content
+    // Update plan in DB — mark as unlocked
+    // Plan content will be fetched separately via fetch-plan-content
     await supabase
       .from('plans')
       .update({
         status: 'unlocked',
         payment_transaction_hash: txHash,
         paid_at: new Date().toISOString(),
-        plan_content: parsedContent,
       })
       .eq('id', plan_id)
 
@@ -106,8 +99,13 @@ serve(async (req) => {
       .eq('type', 'plan_submission')
       .eq('status', 'pending')
 
+    console.log(`pay-for-plan: plan ${plan_id} unlocked successfully`)
+
     return new Response(
-      JSON.stringify({ payment_transaction_hash: txHash, status: 'unlocked' }),
+      JSON.stringify({
+        payment_transaction_hash: txHash,
+        status: 'unlocked',
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

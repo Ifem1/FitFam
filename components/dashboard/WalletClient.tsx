@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Copy, Eye, EyeOff, AlertTriangle, Loader2, CheckCircle, Wallet } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Copy, Eye, EyeOff, AlertTriangle, Loader2, CheckCircle, Wallet, RefreshCw, Coins } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -30,6 +30,31 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
   const [showKey, setShowKey] = useState(false)
   const [loading, setLoading] = useState(false)
   const [settingUpWallet, setSettingUpWallet] = useState(false)
+  const [balance, setBalance] = useState<string | null>(null)
+  const [balanceLoading, setBalanceLoading] = useState(false)
+
+  const fetchBalance = async () => {
+    if (!walletAddress) return
+    setBalanceLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('wallet-info')
+      if (!error && data?.gen_balance) {
+        setBalance(data.gen_balance)
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setBalanceLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchBalance()
+  }, [walletAddress]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalSpent = transactions
+    .filter(tx => tx.type === 'plan_payment' && tx.status === 'confirmed' && tx.gen_amount)
+    .reduce((sum, tx) => sum + (tx.gen_amount ?? 0), 0)
 
   const handleSetupWallet = async () => {
     setSettingUpWallet(true)
@@ -91,10 +116,47 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
         <p className="text-muted-foreground text-sm mt-1">Manage your GEN token wallet</p>
       </div>
 
+      {/* Balance card */}
+      {walletAddress && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-6 border border-border/50 bg-gradient-to-br from-plum/5 to-mauve/5 dark:from-peach/5 dark:to-mauve/5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-plum dark:text-peach" />
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">GEN Balance</p>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 180 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={fetchBalance}
+              disabled={balanceLoading}
+              className="glass w-8 h-8 rounded-lg flex items-center justify-center hover:bg-plum/10 dark:hover:bg-white/10 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${balanceLoading ? 'animate-spin' : ''}`} />
+            </motion.button>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-plum dark:text-peach">
+              {balanceLoading ? '...' : (balance ?? '—')}
+            </span>
+            <span className="text-sm text-muted-foreground font-medium">GEN</span>
+          </div>
+          {totalSpent > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Total spent on plans: {totalSpent} GEN
+            </p>
+          )}
+        </motion.div>
+      )}
+
       {/* Wallet address */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
         className="glass rounded-2xl p-6 border border-border/50"
       >
         <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide font-medium">Your Wallet Address</p>
@@ -134,7 +196,7 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
+        transition={{ delay: 0.1 }}
         className="glass rounded-2xl p-6 border border-border/50"
       >
         <h3 className="font-semibold mb-3">Export Private Key</h3>
@@ -217,7 +279,7 @@ export default function WalletClient({ walletAddress, transactions }: Props) {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.16 }}
+        transition={{ delay: 0.15 }}
       >
         <h3 className="font-semibold mb-4">Transaction History</h3>
         {transactions.length === 0 ? (

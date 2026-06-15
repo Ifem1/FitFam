@@ -1,6 +1,6 @@
 // Pay For Plan Edge Function
 // Calls FitnessPlanContract.mark_plan_paid on StudioNet, fetches plan content, unlocks in DB
-// Contract: 0x2CE19654c18Ceb2A24Af43Dc82890673225EA71f
+// Contract: 0xdA6F589f1e27BdA5518fD27C7F64B8FdD2bC4Bc0
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {

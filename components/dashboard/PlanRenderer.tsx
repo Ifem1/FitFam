@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Dumbbell, Apple, Target, Moon, Zap, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Dumbbell, Apple, Target, Moon, Zap, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface Exercise {
@@ -62,6 +62,37 @@ export default function PlanRenderer({
   const plan = content as PlanContent
   const [activeTab, setActiveTab] = useState<'workouts' | 'nutrition' | 'milestones' | 'recovery'>('workouts')
   const [expandedWeek, setExpandedWeek] = useState<number | null>(0)
+  const [downloading, setDownloading] = useState(false)
+  const pdfRef = useRef<HTMLDivElement>(null)
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true)
+    try {
+      const html2pdf = (await import('html2pdf.js')).default
+      const el = pdfRef.current
+      if (!el) return
+
+      el.style.display = 'block'
+
+      const opts = {
+        margin: [10, 10, 10, 10],
+        filename: `FitFam-${durationMonths}Month-Plan.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (html2pdf() as any).set(opts).from(el).save()
+
+      el.style.display = 'none'
+    } catch {
+      // fallback: window.print()
+      window.print()
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const tabs = [
     { id: 'workouts',   label: 'Workouts',   icon: Dumbbell },
@@ -87,22 +118,34 @@ export default function PlanRenderer({
         </motion.div>
       )}
 
-      {/* Tab nav */}
-      <div className="glass rounded-xl p-1 flex gap-1 border border-border/40">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? 'bg-plum dark:bg-peach text-linen dark:text-plum-black shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{tab.label}</span>
-          </button>
-        ))}
+      {/* Tab nav + download */}
+      <div className="flex items-center gap-3">
+        <div className="glass rounded-xl p-1 flex gap-1 border border-border/40 flex-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'bg-plum dark:bg-peach text-linen dark:text-plum-black shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleDownloadPDF}
+          disabled={downloading}
+          className="shrink-0 glass flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-border/40 hover:border-mauve/40 transition-all disabled:opacity-50"
+        >
+          {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          <span className="hidden sm:inline">PDF</span>
+        </motion.button>
       </div>
 
       <AnimatePresence mode="wait">
@@ -294,6 +337,127 @@ export default function PlanRenderer({
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Hidden PDF content — all sections rendered for export */}
+      <div ref={pdfRef} style={{ display: 'none' }}>
+        <div style={{ fontFamily: 'system-ui, sans-serif', color: '#1a1a1a', padding: '20px', maxWidth: '700px' }}>
+          <h1 style={{ fontSize: '24px', marginBottom: '4px' }}>FitFam — {durationMonths}-Month Fitness Plan</h1>
+          <hr style={{ margin: '12px 0', borderColor: '#ddd' }} />
+
+          {plan.summary && (
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Plan Summary</h2>
+              <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#444' }}>{plan.summary}</p>
+            </div>
+          )}
+
+          {plan.weekly_schedule && (
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '12px' }}>Workout Schedule</h2>
+              {plan.weekly_schedule.map((week, wIdx) => (
+                <div key={wIdx} style={{ marginBottom: '16px', pageBreakInside: 'avoid' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
+                    Week {week.week_number}{week.theme ? ` — ${week.theme}` : ''}
+                  </h3>
+                  {week.schedule?.map((day, dIdx) => (
+                    <div key={dIdx} style={{ marginBottom: '8px', marginLeft: '12px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600 }}>{day.day} — {day.focus}</p>
+                      {day.exercises?.length > 0 ? (
+                        <ul style={{ margin: '4px 0 0 16px', fontSize: '12px', color: '#555' }}>
+                          {day.exercises.map((ex, eIdx) => (
+                            <li key={eIdx} style={{ marginBottom: '2px' }}>
+                              {ex.name}
+                              {ex.sets ? ` — ${ex.sets} sets` : ''}
+                              {ex.reps ? ` x ${ex.reps}` : ''}
+                              {ex.duration ? ` (${ex.duration})` : ''}
+                              {ex.rest ? ` | Rest: ${ex.rest}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p style={{ fontSize: '12px', color: '#888', marginLeft: '16px' }}>Rest Day</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {plan.nutrition_guidelines && (
+            <div style={{ marginBottom: '24px', pageBreakInside: 'avoid' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Nutrition Guidelines</h2>
+              <p style={{ fontSize: '13px', color: '#444' }}>
+                Daily Calories: {plan.nutrition_guidelines.daily_calories} kcal
+                {' | '}Protein: {plan.nutrition_guidelines.protein_g}g
+                {' | '}Carbs: {plan.nutrition_guidelines.carbs_g}g
+                {' | '}Fats: {plan.nutrition_guidelines.fats_g}g
+              </p>
+              {plan.nutrition_guidelines.foods_to_eat && (
+                <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Foods to Eat:</p>
+                  <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
+                    {plan.nutrition_guidelines.foods_to_eat.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                </div>
+              )}
+              {plan.nutrition_guidelines.foods_to_avoid && (
+                <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Foods to Avoid:</p>
+                  <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
+                    {plan.nutrition_guidelines.foods_to_avoid.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                </div>
+              )}
+              {plan.nutrition_guidelines.meal_timing && (
+                <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Meal Timing:</p>
+                  <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
+                    {plan.nutrition_guidelines.meal_timing.map((t, i) => <li key={i}>{t}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {plan.milestones && (
+            <div style={{ marginBottom: '24px', pageBreakInside: 'avoid' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Milestones</h2>
+              {plan.milestones.map((m, i) => (
+                <div key={i} style={{ marginBottom: '8px', marginLeft: '12px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>
+                    {m.week ? `Week ${m.week}` : m.month ? `Month ${m.month}` : `#${i + 1}`} — {m.title}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#555' }}>{m.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {plan.recovery_guidance && (
+            <div style={{ marginBottom: '24px', pageBreakInside: 'avoid' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Recovery Guidance</h2>
+              <ol style={{ fontSize: '12px', color: '#555', margin: '0 0 0 16px' }}>
+                {plan.recovery_guidance.map((r, i) => <li key={i} style={{ marginBottom: '4px' }}>{r}</li>)}
+              </ol>
+            </div>
+          )}
+
+          {plan.motivation_tips && (
+            <div style={{ pageBreakInside: 'avoid' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Motivation Tips</h2>
+              <ul style={{ fontSize: '12px', color: '#555', margin: '0 0 0 16px' }}>
+                {plan.motivation_tips.map((t, i) => <li key={i} style={{ marginBottom: '4px' }}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <hr style={{ margin: '20px 0 8px', borderColor: '#ddd' }} />
+          <p style={{ fontSize: '10px', color: '#999', textAlign: 'center' }}>
+            Generated by FitFam — Powered by GenLayer
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

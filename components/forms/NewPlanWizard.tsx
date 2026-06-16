@@ -133,7 +133,11 @@ export default function NewPlanWizard() {
           region: form.region,
         },
       })
-      if (profileError) throw new Error('Failed to save profile')
+      if (profileError) {
+        const ctx = profileError.context
+        const body = ctx instanceof Response ? await ctx.json().catch(() => null) : null
+        throw new Error(body?.error || 'Failed to save profile')
+      }
       const { profile } = profileData
 
       const { data: planData, error: planError } = await supabase.functions.invoke('submit-plan', {
@@ -142,7 +146,11 @@ export default function NewPlanWizard() {
           duration_months: form.duration_months,
         },
       })
-      if (planError) throw new Error(planError.message || 'Failed to submit plan')
+      if (planError) {
+        const ctx = planError.context
+        const body = ctx instanceof Response ? await ctx.json().catch(() => null) : null
+        throw new Error(body?.error || 'Failed to submit plan')
+      }
       const { plan_id } = planData
 
       toast.success('Plan saved! Proceed to payment to generate your personalized plan.')

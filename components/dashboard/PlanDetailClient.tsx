@@ -79,7 +79,11 @@ export default function PlanDetailClient({ plan }: Props) {
       const { data, error: payError } = await supabase.functions.invoke('pay-for-plan', {
         body: { plan_id: plan.id },
       })
-      if (payError) throw new Error(payError.message ?? 'Payment failed')
+      if (payError) {
+        const ctx = payError.context
+        const body = ctx instanceof Response ? await ctx.json().catch(() => null) : null
+        throw new Error(body?.error || 'Payment failed')
+      }
       toast.success('Payment submitted! GenLayer is generating your plan...')
       refresh()
       router.refresh()

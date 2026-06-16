@@ -28,13 +28,10 @@ serve(async (req) => {
       .not('contract_transaction_hash', 'is', null)
 
     if (error) throw error
-    if (!pendingPlans || pendingPlans.length === 0) {
-      return new Response(JSON.stringify({ processed: 0, pending: 0 }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
 
     let processed = 0
 
-    for (const plan of pendingPlans) {
+    for (const plan of (pendingPlans ?? [])) {
       try {
         const receipt = await getTransactionReceipt(plan.contract_transaction_hash)
         if (!receipt || typeof receipt !== 'object') continue
@@ -60,16 +57,25 @@ serve(async (req) => {
                 const payload = result.payload as Record<string, unknown> | undefined
                 const readable = payload?.readable as string | undefined
                 if (readable) {
-                  // The contract now returns JSON: {"id": plan_id, "recipe": {...}}
-                  // readable is wrapped in extra quotes like "\"...\""
-                  const cleaned = readable.replace(/^"|"$/g, '')
+                  // The contract returns JSON: {"id": plan_id, "recipe": {...}}
+                  // readable may be double-encoded: outer quotes + escaped inner quotes
+                  let jsonStr = readable
+                  // Try unwrapping double-encoded JSON string first
+                  if (jsonStr.startsWith('"') || jsonStr.startsWith('\\"')) {
+                    try { jsonStr = JSON.parse(jsonStr) } catch { /* not double-encoded */ }
+                  }
+                  // Strip any remaining outer quotes
+                  jsonStr = jsonStr.replace(/^"|"$/g, '')
+                  // Unescape backslash-quoted characters
+                  jsonStr = jsonStr.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
                   try {
-                    const parsed = JSON.parse(cleaned)
+                    const parsed = JSON.parse(jsonStr)
                     contractPlanId = String(parsed.id ?? '')
                     recipeData = parsed.recipe ?? null
-                  } catch {
-                    // Fallback: old format where readable was just the plan_id
-                    contractPlanId = cleaned
+                    console.log(`poll-consensus: parsed recipe keys: ${recipeData ? Object.keys(recipeData).join(',') : 'null'}`)
+                  } catch (parseErr) {
+                    console.error(`poll-consensus: JSON parse failed for readable:`, readable.slice(0, 200), parseErr)
+                    contractPlanId = jsonStr
                   }
                 }
               } else if (resultStatus === 'error' || resultStatus === 'exception') {
@@ -168,8 +174,66 @@ serve(async (req) => {
       }
     }
 
+    // Recovery: expand unlocked plans that have recipe data in contract_plan_id but no content
+    let recovered = 0
+    const { data: emptyPlans } = await supabase
+      .from('plans')
+      .select('id, contract_plan_id, fitness_profile_id, duration_months')
+      .eq('status', 'unlocked')
+      .is('plan_content', null)
+      .not('contract_plan_id', 'is', null)
+
+    for (const ep of emptyPlans ?? []) {
+      try {
+        let recipeRaw = ep.contract_plan_id as string
+        // contract_plan_id may contain the full JSON response if parsing failed previously
+        let recipe: Record<string, unknown> | null = null
+        try {
+          const unescaped = recipeRaw.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+          const parsed = JSON.parse(unescaped)
+          recipe = parsed.recipe ?? parsed
+        } catch {
+          try { recipe = JSON.parse(recipeRaw) } catch { /* not valid JSON */ }
+        }
+        if (!recipe || !ep.fitness_profile_id) continue
+
+        const { data: profile } = await supabase
+          .from('fitness_profiles')
+          .select('*')
+          .eq('id', ep.fitness_profile_id)
+          .single()
+        if (!profile) continue
+
+        const profileForExpander = {
+          age: profile.age,
+          weight: String(profile.weight),
+          weight_unit: profile.weight_unit,
+          height: String(profile.height),
+          height_unit: profile.height_unit,
+          fitness_level: profile.fitness_level,
+          goal_type: profile.goal_type,
+          allergies: profile.allergies ?? '',
+          preferred_proteins: profile.preferred_proteins ?? '',
+          region: profile.region ?? '',
+        }
+
+        const sanitised = sanitiseRecipe(recipe, profileForExpander)
+        const planContent = expandPlan(profileForExpander, ep.duration_months, sanitised)
+
+        await supabase
+          .from('plans')
+          .update({ plan_content: planContent, updated_at: new Date().toISOString() })
+          .eq('id', ep.id)
+
+        console.log(`poll-consensus: recovered plan ${ep.id} with ${Object.keys(planContent).length} sections`)
+        recovered++
+      } catch (recoverErr) {
+        console.error(`poll-consensus: recovery failed for plan ${ep.id}:`, recoverErr)
+      }
+    }
+
     return new Response(
-      JSON.stringify({ processed, pending: pendingPlans.length }),
+      JSON.stringify({ processed, pending: pendingPlans.length, recovered }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

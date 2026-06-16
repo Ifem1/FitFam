@@ -37,7 +37,7 @@ export default function PlanDetailClient({ plan }: Props) {
   const currentStatus = status ?? plan.status
 
   useEffect(() => {
-    if (status && status !== plan.status && status !== 'pending') {
+    if (status && status !== plan.status && status !== 'pending' && status !== 'awaiting_payment') {
       router.refresh()
     }
   }, [status, plan.status, router])
@@ -64,7 +64,7 @@ export default function PlanDetailClient({ plan }: Props) {
       }
     }
     setLoadingContent(false)
-    toast.error('Plan content is still loading from the blockchain. Please refresh in a moment.')
+    toast.error('Plan content is still loading. Please refresh in a moment.')
   }
 
   useEffect(() => {
@@ -73,17 +73,16 @@ export default function PlanDetailClient({ plan }: Props) {
     }
   }, [currentStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePayAndUnlock = async () => {
+  const handlePayAndGenerate = async () => {
     setPaying(true)
     try {
-      const { error: payError } = await supabase.functions.invoke('pay-for-plan', {
+      const { data, error: payError } = await supabase.functions.invoke('pay-for-plan', {
         body: { plan_id: plan.id },
       })
       if (payError) throw new Error(payError.message ?? 'Payment failed')
-      toast.success('Plan unlocked! Loading your fitness program...')
+      toast.success('Payment submitted! GenLayer is generating your plan...')
       refresh()
       router.refresh()
-      fetchPlanContent()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Payment failed')
     } finally {
@@ -119,11 +118,8 @@ export default function PlanDetailClient({ plan }: Props) {
         </div>
       </motion.div>
 
-      {/* Pending — consensus animation */}
-      {currentStatus === 'pending' && <ConsensusLoader />}
-
-      {/* Locked — payment CTA */}
-      {(currentStatus === 'locked' || currentStatus === 'consensus_reached') && (
+      {/* Awaiting Payment — payment CTA */}
+      {currentStatus === 'awaiting_payment' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -132,27 +128,27 @@ export default function PlanDetailClient({ plan }: Props) {
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-plum/20 to-mauve/20 dark:from-peach/15 dark:to-mauve/15 flex items-center justify-center mx-auto mb-6">
             <Lock className="w-9 h-9 text-plum dark:text-peach" />
           </div>
-          <h2 className="text-2xl font-bold mb-3">Your Plan Is Ready</h2>
+          <h2 className="text-2xl font-bold mb-3">Ready to Generate Your Plan</h2>
           <p className="text-muted-foreground mb-2">
-            GenLayer validators have reached consensus on your personalized plan.
+            Your fitness profile is saved. Pay to start plan generation.
           </p>
           <p className="text-muted-foreground text-sm mb-8">
             Pay{' '}
             <span className="text-plum dark:text-peach font-semibold">{plan.price_gen} GEN tokens</span>{' '}
-            to unlock your full workout and nutrition program.
+            and GenLayer validators will create your personalized workout and nutrition program.
           </p>
 
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            onClick={handlePayAndUnlock}
+            onClick={handlePayAndGenerate}
             disabled={paying}
             className="inline-flex items-center gap-2 btn-primary px-8 py-4 glow disabled:opacity-50 disabled:cursor-not-allowed text-base"
           >
             {paying ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Processing Payment...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> Submitting Payment...</>
             ) : (
-              <><Zap className="w-5 h-5" fill="currentColor" /> Pay {plan.price_gen} GEN & Unlock Plan</>
+              <><Zap className="w-5 h-5" fill="currentColor" /> Pay {plan.price_gen} GEN & Generate Plan</>
             )}
           </motion.button>
 
@@ -178,6 +174,9 @@ export default function PlanDetailClient({ plan }: Props) {
         </motion.div>
       )}
 
+      {/* Pending — consensus animation */}
+      {currentStatus === 'pending' && <ConsensusLoader />}
+
       {/* Unlocked — render the plan or show loading */}
       {currentStatus === 'unlocked' && planContent && (
         <PlanRenderer
@@ -196,7 +195,7 @@ export default function PlanDetailClient({ plan }: Props) {
               <Loader2 className="w-10 h-10 animate-spin text-plum dark:text-peach mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Loading Your Plan</h2>
               <p className="text-muted-foreground text-sm">
-                Fetching your personalized fitness plan from the blockchain...
+                Fetching your personalized fitness plan...
               </p>
             </>
           ) : (
@@ -204,8 +203,8 @@ export default function PlanDetailClient({ plan }: Props) {
               <Lock className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Plan Content Loading</h2>
               <p className="text-muted-foreground text-sm mb-6">
-                Your plan is unlocked but the blockchain is still syncing the content.
-                This can take a few minutes on StudioNet.
+                Your plan is unlocked but the content is still being processed.
+                This can take a few moments.
               </p>
               <motion.button
                 whileHover={{ scale: 1.03 }}
@@ -245,11 +244,10 @@ export default function PlanDetailClient({ plan }: Props) {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string }> = {
-    pending:           { label: 'Consensus Pending', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
-    consensus_reached: { label: 'Ready to Pay',      color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
-    locked:            { label: 'Ready to Unlock',   color: 'text-mauve dark:text-peach bg-mauve/10 dark:bg-peach/10 border-mauve/20 dark:border-peach/20' },
-    unlocked:          { label: 'Active',             color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10 border-plum/20 dark:border-peach/20' },
-    failed:            { label: 'Failed',             color: 'text-destructive bg-destructive/10 border-destructive/20' },
+    awaiting_payment:  { label: 'Awaiting Payment', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+    pending:           { label: 'Generating Plan',  color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
+    unlocked:          { label: 'Active',            color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10 border-plum/20 dark:border-peach/20' },
+    failed:            { label: 'Failed',            color: 'text-destructive bg-destructive/10 border-destructive/20' },
   }
   const c = config[status] ?? { label: status, color: 'text-muted-foreground bg-muted border-border' }
   return (

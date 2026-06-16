@@ -145,7 +145,7 @@ export default function NewPlanWizard() {
       if (planError) throw new Error(planError.message || 'Failed to submit plan')
       const { plan_id } = planData
 
-      toast.success('Plan submitted! GenLayer validators are reaching consensus...')
+      toast.success('Plan saved! Proceed to payment to generate your personalized plan.')
       router.push(`/dashboard/plans/${plan_id}`)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Submission failed')
@@ -487,13 +487,13 @@ export default function NewPlanWizard() {
                     <div className="text-plum dark:text-peach font-bold text-xl">
                       {PRICING[form.duration_months!]} GEN
                     </div>
-                    <div className="text-xs text-muted-foreground">paid after consensus</div>
+                    <div className="text-xs text-muted-foreground">paid before generation</div>
                   </div>
                 </div>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Your profile will be submitted to the GenLayer Intelligent Contract. Validators will reach consensus on your plan (30s-2min). You pay GEN tokens only after your plan is ready.
+                Your profile will be saved and you'll be directed to the payment page. Once you pay, GenLayer validators will generate your personalized plan (30s-2min).
               </p>
             </div>
           )}
@@ -524,9 +524,9 @@ export default function NewPlanWizard() {
           {step < 6 ? (
             <>Next <ChevronRight className="w-4 h-4" /></>
           ) : submitting ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Submitting to GenLayer...</>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Saving Plan...</>
           ) : (
-            <>Submit Plan to GenLayer <ChevronRight className="w-4 h-4" /></>
+            <>Save & Continue to Payment <ChevronRight className="w-4 h-4" /></>
           )}
         </motion.button>
       </div>

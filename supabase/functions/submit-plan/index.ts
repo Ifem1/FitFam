@@ -1,9 +1,9 @@
 // Submit Plan Edge Function
-// Saves fitness profile, calls FitnessPlanContract.submit_fitness_profile on StudioNet
-// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
+// NEW FLOW: Saves fitness profile to DB only (no blockchain call).
+// Status is "awaiting_payment" — blockchain call happens after payment.
+// Contract: 0x45462B9720d90213Eac1D2AD889cD8F1C7f77852
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { decryptPrivateKey, sendContractTransaction } from '../_shared/genlayer.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +30,6 @@ serve(async (req) => {
     if (!fitness_profile_id) throw new Error('Missing fitness_profile_id')
     if (![1, 3, 6].includes(duration_months)) throw new Error('duration_months must be 1, 3, or 6')
 
-    // Verify the profile belongs to this user
     const { data: profile, error: profileError } = await supabase
       .from('fitness_profiles')
       .select('*')
@@ -39,7 +38,6 @@ serve(async (req) => {
       .single()
     if (profileError || !profile) throw new Error('Fitness profile not found')
 
-    // Get current pricing from DB
     const { data: pricing } = await supabase
       .from('pricing_config')
       .select('price_gen')
@@ -47,62 +45,25 @@ serve(async (req) => {
       .single()
     const priceGen = pricing?.price_gen ?? (duration_months === 1 ? 5 : duration_months === 3 ? 12 : 20)
 
-    // Get user wallet and decrypt private key
-    const { data: userRecord } = await supabase
-      .from('users')
-      .select('wallet_address, encrypted_private_key')
-      .eq('id', user.id)
-      .single()
-    if (!userRecord?.encrypted_private_key) throw new Error('User wallet not found')
-
-    const privateKey = await decryptPrivateKey(userRecord.encrypted_private_key)
-
-    // Call FitnessPlanContract.submit_fitness_profile on StudioNet
-    // Args must match Python contract signature exactly:
-    // (age, weight, weight_unit, height, height_unit, fitness_level, goal_type, duration_months)
-    const txHash = await sendContractTransaction(privateKey, 'submit_fitness_profile', [
-      profile.age,
-      String(profile.weight),   // contract expects str
-      profile.weight_unit,
-      String(profile.height),   // contract expects str
-      profile.height_unit,
-      profile.fitness_level,
-      profile.goal_type,
-      duration_months,
-      profile.allergies ?? '',
-      profile.preferred_proteins ?? '',
-      profile.region ?? '',
-    ])
-
-    // Create plan record in DB (status=pending until consensus)
     const { data: plan, error: planError } = await supabase
       .from('plans')
       .insert({
         user_id: user.id,
         fitness_profile_id,
         duration_months,
-        status: 'pending',
-        contract_transaction_hash: txHash,
+        status: 'awaiting_payment',
         price_gen: priceGen,
       })
       .select()
       .single()
     if (planError) throw planError
 
-    // Record the submission transaction
-    await supabase.from('transactions').insert({
-      user_id: user.id,
-      plan_id: plan.id,
-      type: 'plan_submission',
-      transaction_hash: txHash,
-      status: 'pending',
-    })
+    console.log(`submit-plan: plan ${plan.id} created with status awaiting_payment`)
 
     return new Response(
       JSON.stringify({
         plan_id: plan.id,
-        transaction_hash: txHash,
-        status: 'pending',
+        status: 'awaiting_payment',
         price_gen: priceGen,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

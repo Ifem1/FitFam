@@ -10,6 +10,7 @@ export default async function DashboardPage() {
     .from('plans')
     .select('*')
     .eq('user_id', session!.user.id)
+    .neq('status', 'failed')
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -20,7 +21,7 @@ export default async function DashboardPage() {
     .single()
 
   const activePlan = plans?.find((p) => p.status === 'unlocked')
-  const pendingPlans = plans?.filter((p) => ['pending', 'consensus_reached', 'locked'].includes(p.status)) ?? []
+  const pendingPlans = plans?.filter((p) => ['pending', 'awaiting_payment'].includes(p.status)) ?? []
   const totalPlans = plans?.length ?? 0
 
   const stats = [
@@ -147,9 +148,8 @@ function ClipboardIcon({ className }: { className?: string }) {
 
 function PlanRow({ plan }: { plan: Record<string, unknown> }) {
   const statusConfig: Record<string, { label: string; color: string }> = {
-    pending:           { label: 'Validators Consensus...', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
-    consensus_reached: { label: 'Ready to Pay',            color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
-    locked:            { label: 'Pay to Unlock',           color: 'text-mauve bg-mauve/10' },
+    awaiting_payment:  { label: 'Awaiting Payment',        color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10' },
+    pending:           { label: 'Generating Plan...',      color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
     unlocked:          { label: 'Active',                  color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10' },
     failed:            { label: 'Failed',                  color: 'text-destructive bg-destructive/10' },
   }

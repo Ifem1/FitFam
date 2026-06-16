@@ -1,7 +1,7 @@
 // Pay For Plan Edge Function
-// Calls FitnessPlanContract.mark_plan_paid on StudioNet, then marks plan unlocked in DB
-// Plan content is fetched separately via fetch-plan-content
-// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
+// NEW FLOW: Records payment, then calls submit_fitness_profile on GenLayer
+// to trigger LLM consensus. Plan moves to "pending" (consensus in progress).
+// Contract: 0x45462B9720d90213Eac1D2AD889cD8F1C7f77852
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
@@ -33,7 +33,6 @@ serve(async (req) => {
     const { plan_id } = await req.json()
     if (!plan_id) throw new Error('Missing plan_id')
 
-    // Fetch plan and verify ownership
     const { data: plan, error: planError } = await supabase
       .from('plans')
       .select('*')
@@ -42,11 +41,17 @@ serve(async (req) => {
       .single()
     if (planError || !plan) throw new Error('Plan not found')
     if (plan.status === 'unlocked') throw new Error('Plan is already unlocked')
-    if (plan.status === 'pending') throw new Error('Consensus not yet reached — please wait')
+    if (plan.status === 'pending') throw new Error('Plan is already being generated — please wait for consensus')
     if (plan.status === 'failed') throw new Error('Plan generation failed — please create a new plan')
-    if (!plan.contract_plan_id) throw new Error('Contract plan ID missing — poll consensus may still be running')
+    if (plan.status !== 'awaiting_payment') throw new Error(`Plan is in unexpected status: ${plan.status}`)
 
-    // Get user wallet
+    const { data: profile, error: profileError } = await supabase
+      .from('fitness_profiles')
+      .select('*')
+      .eq('id', plan.fitness_profile_id)
+      .single()
+    if (profileError || !profile) throw new Error('Fitness profile not found')
+
     const { data: userRecord } = await supabase
       .from('users')
       .select('encrypted_private_key, wallet_address')
@@ -56,55 +61,53 @@ serve(async (req) => {
 
     const privateKey = await decryptPrivateKey(userRecord.encrypted_private_key)
 
-    console.log(`pay-for-plan: planId=${plan_id} contractPlanId=${plan.contract_plan_id} wallet=${userRecord.wallet_address ?? 'n/a'}`)
+    console.log(`pay-for-plan: planId=${plan_id} wallet=${userRecord.wallet_address ?? 'n/a'} submitting to GenLayer`)
 
-    // Call mark_plan_paid on-chain
     let txHash: string
     try {
-      txHash = await sendContractTransaction(privateKey, 'mark_plan_paid', [
-        plan.contract_plan_id,
+      txHash = await sendContractTransaction(privateKey, 'submit_fitness_profile', [
+        profile.age,
+        String(profile.weight),
+        profile.weight_unit,
+        String(profile.height),
+        profile.height_unit,
+        profile.fitness_level,
+        profile.goal_type,
+        plan.duration_months,
+        profile.allergies ?? '',
+        profile.preferred_proteins ?? '',
+        profile.region ?? '',
       ])
-      console.log(`pay-for-plan: mark_plan_paid submitted txHash=${txHash}`)
+      console.log(`pay-for-plan: submit_fitness_profile submitted txHash=${txHash}`)
     } catch (txErr) {
-      console.error(`pay-for-plan: mark_plan_paid FAILED:`, txErr)
-      throw new Error(`Payment transaction failed: ${txErr.message}`)
+      console.error(`pay-for-plan: submit_fitness_profile FAILED:`, txErr)
+      throw new Error(`Blockchain transaction failed: ${txErr.message}`)
     }
 
-    // Update plan in DB — mark as unlocked
-    // Plan content will be fetched separately via fetch-plan-content
     await supabase
       .from('plans')
       .update({
-        status: 'unlocked',
-        payment_transaction_hash: txHash,
+        status: 'pending',
+        contract_transaction_hash: txHash,
         paid_at: new Date().toISOString(),
       })
       .eq('id', plan_id)
 
-    // Record payment transaction
     await supabase.from('transactions').insert({
       user_id: user.id,
       plan_id,
       type: 'plan_payment',
       transaction_hash: txHash,
-      status: 'confirmed',
+      status: 'pending',
       gen_amount: plan.price_gen,
     })
 
-    // Update submission transaction as confirmed if still pending
-    await supabase
-      .from('transactions')
-      .update({ status: 'confirmed' })
-      .eq('plan_id', plan_id)
-      .eq('type', 'plan_submission')
-      .eq('status', 'pending')
-
-    console.log(`pay-for-plan: plan ${plan_id} unlocked successfully`)
+    console.log(`pay-for-plan: plan ${plan_id} moved to pending (consensus in progress)`)
 
     return new Response(
       JSON.stringify({
-        payment_transaction_hash: txHash,
-        status: 'unlocked',
+        transaction_hash: txHash,
+        status: 'pending',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

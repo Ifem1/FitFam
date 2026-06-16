@@ -1157,7 +1157,7 @@ class FitnessPlanContract(gl.Contract):
         existing_ids.append(plan_id)
         self.user_plans[sender] = json.dumps(existing_ids)
 
-        return plan_id
+        return json.dumps({"id": plan_id, "recipe": recipe})
 
     @gl.public.write
     def mark_plan_paid(self, plan_id: str) -> bool:

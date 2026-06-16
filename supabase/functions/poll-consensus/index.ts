@@ -1,9 +1,11 @@
 // Poll Consensus Edge Function
-// Checks GenLayer for finalized transactions and updates plan status in DB
-// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
+// Checks GenLayer for finalized transactions, extracts recipe from tx receipt,
+// runs server-side plan expansion, and saves content to DB.
+// Contract: 0x45462B9720d90213Eac1D2AD889cD8F1C7f77852
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getTransactionReceipt } from '../_shared/genlayer.ts'
+import { expandPlan, sanitiseRecipe } from '../_shared/plan-expander.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +23,7 @@ serve(async (req) => {
 
     const { data: pendingPlans, error } = await supabase
       .from('plans')
-      .select('id, contract_transaction_hash')
+      .select('id, contract_transaction_hash, fitness_profile_id, duration_months')
       .eq('status', 'pending')
       .not('contract_transaction_hash', 'is', null)
 
@@ -41,11 +43,10 @@ serve(async (req) => {
         const numericStatus = typeof rx.status === 'number' ? rx.status : null
         const consensusData = rx.consensus_data as Record<string, unknown> | undefined
 
-        // Determine success by checking consensus_data.leader_receipt for a "return" status
-        // This is robust regardless of what numeric status code GenLayer uses
         let isSuccess = false
         let isFailure = false
         let contractPlanId: string | null = null
+        let recipeData: Record<string, unknown> | null = null
 
         if (consensusData) {
           const leaderReceipt = consensusData.leader_receipt as Array<Record<string, unknown>> | undefined
@@ -59,8 +60,17 @@ serve(async (req) => {
                 const payload = result.payload as Record<string, unknown> | undefined
                 const readable = payload?.readable as string | undefined
                 if (readable) {
-                  // readable is like "\"0\"" — strip the wrapping quotes
-                  contractPlanId = readable.replace(/^"|"$/g, '')
+                  // The contract now returns JSON: {"id": plan_id, "recipe": {...}}
+                  // readable is wrapped in extra quotes like "\"...\""
+                  const cleaned = readable.replace(/^"|"$/g, '')
+                  try {
+                    const parsed = JSON.parse(cleaned)
+                    contractPlanId = String(parsed.id ?? '')
+                    recipeData = parsed.recipe ?? null
+                  } catch {
+                    // Fallback: old format where readable was just the plan_id
+                    contractPlanId = cleaned
+                  }
                 }
               } else if (resultStatus === 'error' || resultStatus === 'exception') {
                 isFailure = true
@@ -68,7 +78,6 @@ serve(async (req) => {
             }
           }
 
-          // Also check votes — if majority rejected
           const votes = consensusData.votes as Record<string, string> | undefined
           if (votes) {
             const voteValues = Object.values(votes)
@@ -80,21 +89,53 @@ serve(async (req) => {
           }
         }
 
-        // Fallback: check numeric status for known terminal states
         if (!isSuccess && !isFailure && numericStatus !== null) {
-          // Statuses 0-3 are in-progress (PENDING, PROPOSING, COMMITTING, REVEALING)
-          // Status 6 is UNDETERMINED
           if (numericStatus === 6) isFailure = true
         }
 
-        console.log(`poll-consensus: plan=${plan.id} numericStatus=${numericStatus} isSuccess=${isSuccess} isFailure=${isFailure} contractPlanId=${contractPlanId}`)
+        console.log(`poll-consensus: plan=${plan.id} numericStatus=${numericStatus} isSuccess=${isSuccess} isFailure=${isFailure} contractPlanId=${contractPlanId} hasRecipe=${!!recipeData}`)
 
         if (isSuccess) {
+          let planContent: Record<string, unknown> | null = null
+
+          if (recipeData && plan.fitness_profile_id) {
+            try {
+              const { data: profile } = await supabase
+                .from('fitness_profiles')
+                .select('*')
+                .eq('id', plan.fitness_profile_id)
+                .single()
+
+              if (profile) {
+                const profileForExpander = {
+                  age: profile.age,
+                  weight: String(profile.weight),
+                  weight_unit: profile.weight_unit,
+                  height: String(profile.height),
+                  height_unit: profile.height_unit,
+                  fitness_level: profile.fitness_level,
+                  goal_type: profile.goal_type,
+                  allergies: profile.allergies ?? '',
+                  preferred_proteins: profile.preferred_proteins ?? '',
+                  region: profile.region ?? '',
+                }
+
+                const recipe = sanitiseRecipe(recipeData, profileForExpander)
+                planContent = expandPlan(profileForExpander, plan.duration_months, recipe) as Record<string, unknown>
+                console.log(`poll-consensus: plan ${plan.id} expanded successfully (${Object.keys(planContent).length} sections)`)
+              }
+            } catch (expandErr) {
+              console.error(`poll-consensus: plan ${plan.id} expansion failed:`, expandErr)
+            }
+          }
+
           await supabase
             .from('plans')
             .update({
-              status: 'locked',
+              status: 'unlocked',
               contract_plan_id: contractPlanId,
+              plan_content: planContent,
+              payment_transaction_hash: plan.contract_transaction_hash,
               updated_at: new Date().toISOString(),
             })
             .eq('id', plan.id)
@@ -127,45 +168,8 @@ serve(async (req) => {
       }
     }
 
-    // Also try to fetch content for unlocked plans that don't have content yet
-    let contentFetched = 0
-    try {
-      const { data: unlockedNoContent } = await supabase
-        .from('plans')
-        .select('id, contract_plan_id')
-        .eq('status', 'unlocked')
-        .is('plan_content', null)
-        .not('contract_plan_id', 'is', null)
-        .limit(3)
-
-      if (unlockedNoContent && unlockedNoContent.length > 0) {
-        const { callContractView } = await import('../_shared/genlayer.ts')
-        for (const uPlan of unlockedNoContent) {
-          try {
-            const onChain = await callContractView('get_plan', [uPlan.contract_plan_id]) as Record<string, unknown>
-            const raw = onChain?.plan_content
-            if (raw) {
-              let parsed: Record<string, unknown> = {}
-              if (typeof raw === 'string') {
-                try { parsed = JSON.parse(raw) } catch { parsed = { raw } }
-              } else if (typeof raw === 'object') {
-                parsed = raw as Record<string, unknown>
-              }
-              await supabase.from('plans').update({ plan_content: parsed }).eq('id', uPlan.id)
-              contentFetched++
-              console.log(`poll-consensus: fetched content for plan ${uPlan.id}`)
-            }
-          } catch {
-            // State not propagated yet — will retry next poll
-          }
-        }
-      }
-    } catch (contentErr) {
-      console.error('poll-consensus: content fetch error:', contentErr)
-    }
-
     return new Response(
-      JSON.stringify({ processed, pending: pendingPlans.length, contentFetched }),
+      JSON.stringify({ processed, pending: pendingPlans.length }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

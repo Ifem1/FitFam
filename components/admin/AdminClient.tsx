@@ -59,9 +59,8 @@ export default function AdminClient({
   }
 
   const statusColor: Record<string, string> = {
-    pending:           'text-amber-600 dark:text-amber-400 bg-amber-500/10',
-    consensus_reached: 'text-blue-600 dark:text-blue-400 bg-blue-500/10',
-    locked:            'text-mauve bg-mauve/10',
+    awaiting_payment:  'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+    pending:           'text-blue-600 dark:text-blue-400 bg-blue-500/10',
     unlocked:          'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10',
     failed:            'text-destructive bg-destructive/10',
   }

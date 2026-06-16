@@ -10,13 +10,13 @@ export default async function PlansPage() {
     .from('plans')
     .select('*')
     .eq('user_id', session!.user.id)
+    .neq('status', 'failed')
     .order('created_at', { ascending: false })
 
   const statusConfig: Record<string, { label: string; color: string }> = {
-    pending:           { label: 'Validators Reaching Consensus...', color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
-    consensus_reached: { label: 'Ready to Pay',                     color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
-    locked:            { label: 'Locked — Pay to Unlock',           color: 'text-mauve bg-mauve/10 border-mauve/20' },
-    unlocked:          { label: 'Unlocked & Active',                 color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10 border-plum/20 dark:border-peach/20' },
+    awaiting_payment:  { label: 'Awaiting Payment',                  color: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+    pending:           { label: 'Generating Plan...',                color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20' },
+    unlocked:          { label: 'Active',                             color: 'text-plum dark:text-peach bg-plum/10 dark:bg-peach/10 border-plum/20 dark:border-peach/20' },
     failed:            { label: 'Failed',                            color: 'text-destructive bg-destructive/10 border-destructive/20' },
   }
 

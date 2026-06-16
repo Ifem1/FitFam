@@ -1,6 +1,6 @@
 // Wallet Info Edge Function
 // Returns wallet address, GEN balance from StudioNet, and transaction history
-// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
+// Contract: 0x45462B9720d90213Eac1D2AD889cD8F1C7f77852
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getRpcUrl } from '../_shared/genlayer.ts'

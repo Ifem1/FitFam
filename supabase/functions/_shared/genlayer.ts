@@ -1,12 +1,12 @@
 // Shared GenLayer helpers for all Edge Functions
 // Uses the official genlayer-js@1.1.8 SDK on StudioNet
-// Contract: 0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14
+// Contract: 0x45462B9720d90213Eac1D2AD889cD8F1C7f77852
 
 import { createClient, createAccount } from 'https://esm.sh/genlayer-js@1.1.8'
 import { studionet } from 'https://esm.sh/genlayer-js@1.1.8/chains'
 
 export const CONTRACT_ADDRESS =
-  (Deno.env.get('CONTRACT_ADDRESS') ?? '0xBF5eC6C9e42e8e8956d8C1F4f24235CD9616Ca14') as `0x${string}`
+  (Deno.env.get('CONTRACT_ADDRESS') ?? '0x45462B9720d90213Eac1D2AD889cD8F1C7f77852') as `0x${string}`
 
 export function getRpcUrl(): string {
   return Deno.env.get('GENLAYER_RPC_URL') ?? 'https://studio.genlayer.com/api'

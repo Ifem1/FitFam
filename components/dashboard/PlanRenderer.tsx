@@ -30,10 +30,35 @@ interface NutritionGuide {
   protein_g?: number
   carbs_g?: number
   fats_g?: number
+  diet_style?: string
+  macro_ratio?: { protein: number; carbs: number; fats: number }
+  proteins?: string[]
+  carbs?: string[]
+  fats?: string[]
+  vegetables?: string[]
   meal_timing?: string[]
   foods_to_eat?: string[]
   foods_to_avoid?: string[]
   hydration?: string
+  dietary_notes?: string[]
+}
+
+interface MealItem {
+  time: string
+  foods: string
+  macros: string
+}
+
+interface MealPlanDay {
+  label?: string
+  meals?: MealItem[]
+  allergy_notice?: string
+}
+
+interface Supplement {
+  name: string
+  dose: string
+  reason: string
 }
 
 interface Milestone {
@@ -47,6 +72,8 @@ interface PlanContent {
   summary?: string
   weekly_schedule?: Week[]
   nutrition_guidelines?: NutritionGuide
+  sample_daily_meal_plans?: MealPlanDay[]
+  supplement_recommendations?: Supplement[]
   milestones?: Milestone[]
   recovery_guidance?: string[]
   motivation_tips?: string[]
@@ -212,61 +239,163 @@ export default function PlanRenderer({
           )}
 
           {/* Nutrition tab */}
-          {activeTab === 'nutrition' && plan.nutrition_guidelines && (
+          {activeTab === 'nutrition' && (
             <div className="space-y-4">
-              <div className="glass rounded-2xl p-6 border border-border/40">
-                <h3 className="font-bold mb-4">Daily Macro Targets</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Calories', value: plan.nutrition_guidelines.daily_calories, unit: 'kcal', color: 'text-plum dark:text-peach' },
-                    { label: 'Protein',  value: plan.nutrition_guidelines.protein_g,      unit: 'g',    color: 'text-blue-600 dark:text-blue-400' },
-                    { label: 'Carbs',    value: plan.nutrition_guidelines.carbs_g,        unit: 'g',    color: 'text-amber-600 dark:text-amber-400' },
-                    { label: 'Fats',     value: plan.nutrition_guidelines.fats_g,         unit: 'g',    color: 'text-orange-500 dark:text-orange-400' },
-                  ].map((macro) => (
-                    <div key={macro.label} className="bg-muted/30 rounded-xl p-4 text-center border border-border/30">
-                      <div className={`text-2xl font-bold ${macro.color}`}>{macro.value}</div>
-                      <div className="text-xs text-muted-foreground">{macro.unit}</div>
-                      <div className="text-xs font-medium mt-1">{macro.label}</div>
+              {/* Diet style badge */}
+              {plan.nutrition_guidelines?.diet_style && (
+                <div className="glass rounded-xl px-4 py-2.5 border border-mauve/30 bg-mauve/5 dark:bg-peach/5 inline-block">
+                  <span className="text-sm font-medium text-mauve dark:text-peach">{plan.nutrition_guidelines.diet_style}</span>
+                </div>
+              )}
+
+              {/* Macro targets */}
+              {plan.nutrition_guidelines && (
+                <div className="glass rounded-2xl p-6 border border-border/40">
+                  <h3 className="font-bold mb-4">Daily Macro Targets</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Calories', value: plan.nutrition_guidelines.daily_calories, unit: 'kcal', color: 'text-plum dark:text-peach' },
+                      { label: 'Protein',  value: plan.nutrition_guidelines.protein_g,      unit: 'g',    color: 'text-blue-600 dark:text-blue-400' },
+                      { label: 'Carbs',    value: plan.nutrition_guidelines.carbs_g,        unit: 'g',    color: 'text-amber-600 dark:text-amber-400' },
+                      { label: 'Fats',     value: plan.nutrition_guidelines.fats_g,         unit: 'g',    color: 'text-orange-500 dark:text-orange-400' },
+                    ].map((macro) => (
+                      <div key={macro.label} className="bg-muted/30 rounded-xl p-4 text-center border border-border/30">
+                        <div className={`text-2xl font-bold ${macro.color}`}>{macro.value}</div>
+                        <div className="text-xs text-muted-foreground">{macro.unit}</div>
+                        <div className="text-xs font-medium mt-1">{macro.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sample Meal Plans */}
+              {plan.sample_daily_meal_plans && plan.sample_daily_meal_plans.length > 0 && (
+                <div className="glass rounded-2xl p-6 border border-border/40">
+                  <h3 className="font-bold mb-4 flex items-center gap-2">
+                    <Apple className="w-5 h-5 text-plum dark:text-peach" />
+                    Sample Meal Plans
+                  </h3>
+                  {plan.sample_daily_meal_plans.filter(d => d.allergy_notice).map((d, i) => (
+                    <div key={i} className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl mb-4 text-xs text-amber-700 dark:text-amber-400">
+                      <span className="shrink-0">⚠</span> {d.allergy_notice}
                     </div>
                   ))}
+                  <div className="space-y-6">
+                    {plan.sample_daily_meal_plans.filter(d => d.meals).map((day, dIdx) => (
+                      <div key={dIdx}>
+                        <h4 className="font-semibold text-sm text-mauve dark:text-peach mb-3">{day.label}</h4>
+                        <div className="space-y-2">
+                          {day.meals?.map((meal, mIdx) => (
+                            <div key={mIdx} className="bg-muted/30 border border-border/30 rounded-xl p-4">
+                              <div className="text-xs font-semibold text-plum dark:text-peach mb-1">{meal.time}</div>
+                              <p className="text-sm text-foreground leading-relaxed">{meal.foods}</p>
+                              <p className="text-xs text-muted-foreground mt-1.5 font-mono">{meal.macros}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                {plan.nutrition_guidelines.foods_to_eat && (
-                  <div className="glass rounded-2xl p-5 border border-border/40">
-                    <h4 className="font-semibold text-sm text-plum dark:text-peach mb-3">✓ Foods to Eat</h4>
-                    <ul className="space-y-1.5">
-                      {plan.nutrition_guidelines.foods_to_eat.map((f, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-mauve dark:text-peach mt-0.5">•</span> {f}
-                        </li>
-                      ))}
-                    </ul>
+              {/* Food lists by category */}
+              {plan.nutrition_guidelines && (plan.nutrition_guidelines.proteins || plan.nutrition_guidelines.carbs || plan.nutrition_guidelines.fats || plan.nutrition_guidelines.vegetables) && (
+                <div className="glass rounded-2xl p-6 border border-border/40">
+                  <h3 className="font-bold mb-4">Recommended Foods</h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {([
+                      { title: 'Proteins', items: plan.nutrition_guidelines.proteins, color: 'text-blue-600 dark:text-blue-400' },
+                      { title: 'Carbs', items: plan.nutrition_guidelines.carbs, color: 'text-amber-600 dark:text-amber-400' },
+                      { title: 'Healthy Fats', items: plan.nutrition_guidelines.fats, color: 'text-orange-500 dark:text-orange-400' },
+                      { title: 'Vegetables', items: plan.nutrition_guidelines.vegetables, color: 'text-green-600 dark:text-green-400' },
+                    ] as const).filter(g => g.items && g.items.length > 0).map((group) => (
+                      <div key={group.title} className="bg-muted/20 rounded-xl p-4 border border-border/30">
+                        <h4 className={`font-semibold text-sm mb-2 ${group.color}`}>{group.title}</h4>
+                        <ul className="space-y-1">
+                          {group.items!.map((f, i) => (
+                            <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                              <span className={`mt-0.5 ${group.color}`}>•</span> {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
-                )}
-                {plan.nutrition_guidelines.foods_to_avoid && (
-                  <div className="glass rounded-2xl p-5 border border-border/40">
-                    <h4 className="font-semibold text-sm text-destructive mb-3">✕ Foods to Avoid</h4>
-                    <ul className="space-y-1.5">
-                      {plan.nutrition_guidelines.foods_to_avoid.map((f, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-destructive mt-0.5">•</span> {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {plan.nutrition_guidelines.meal_timing && (
+              {/* Foods to avoid */}
+              {plan.nutrition_guidelines?.foods_to_avoid && (
+                <div className="glass rounded-2xl p-5 border border-border/40">
+                  <h4 className="font-semibold text-sm text-destructive mb-3">Foods to Avoid</h4>
+                  <ul className="space-y-1.5">
+                    {plan.nutrition_guidelines.foods_to_avoid.map((f, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-destructive mt-0.5">•</span> {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Hydration */}
+              {plan.nutrition_guidelines?.hydration && (
+                <div className="glass rounded-xl px-5 py-4 border border-border/40 flex items-start gap-3">
+                  <span className="text-lg shrink-0">💧</span>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-1">Hydration</h4>
+                    <p className="text-sm text-muted-foreground">{plan.nutrition_guidelines.hydration}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Meal timing */}
+              {plan.nutrition_guidelines?.meal_timing && (
                 <div className="glass rounded-2xl p-5 border border-border/40">
                   <h4 className="font-semibold text-sm mb-3">Meal Timing</h4>
                   <ul className="space-y-2">
                     {plan.nutrition_guidelines.meal_timing.map((t, i) => (
-                      <li key={i} className="text-sm text-muted-foreground">{t}</li>
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-mauve dark:text-peach shrink-0">→</span> {t}
+                      </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Dietary notes */}
+              {plan.nutrition_guidelines?.dietary_notes && (
+                <div className="glass rounded-2xl p-5 border border-mauve/20 bg-mauve/5 dark:bg-peach/5">
+                  <h4 className="font-semibold text-sm mb-3 text-mauve dark:text-peach">Dietary Notes</h4>
+                  <ul className="space-y-2">
+                    {plan.nutrition_guidelines.dietary_notes.map((n, i) => (
+                      <li key={i} className="text-sm text-muted-foreground leading-relaxed">{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Supplements */}
+              {plan.supplement_recommendations && plan.supplement_recommendations.length > 0 && (
+                <div className="glass rounded-2xl p-6 border border-border/40">
+                  <h3 className="font-bold mb-4">Supplement Recommendations</h3>
+                  <div className="space-y-3">
+                    {plan.supplement_recommendations.map((s, i) => (
+                      <div key={i} className="bg-muted/30 border border-border/30 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium text-sm">{s.name}</div>
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{s.reason}</p>
+                          </div>
+                          <span className="shrink-0 text-xs font-mono text-mauve dark:text-peach bg-mauve/10 dark:bg-peach/10 px-2 py-1 rounded-lg">
+                            {s.dose}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -385,29 +514,40 @@ export default function PlanRenderer({
           )}
 
           {plan.nutrition_guidelines && (
-            <div style={{ marginBottom: '24px', pageBreakInside: 'avoid' }}>
+            <div style={{ marginBottom: '24px' }}>
               <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Nutrition Guidelines</h2>
+              {plan.nutrition_guidelines.diet_style && (
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#666', marginBottom: '6px' }}>{plan.nutrition_guidelines.diet_style}</p>
+              )}
               <p style={{ fontSize: '13px', color: '#444' }}>
                 Daily Calories: {plan.nutrition_guidelines.daily_calories} kcal
                 {' | '}Protein: {plan.nutrition_guidelines.protein_g}g
                 {' | '}Carbs: {plan.nutrition_guidelines.carbs_g}g
                 {' | '}Fats: {plan.nutrition_guidelines.fats_g}g
               </p>
-              {plan.nutrition_guidelines.foods_to_eat && (
-                <div style={{ marginTop: '8px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Foods to Eat:</p>
+              {([
+                { title: 'Proteins', items: plan.nutrition_guidelines.proteins },
+                { title: 'Carbs', items: plan.nutrition_guidelines.carbs },
+                { title: 'Healthy Fats', items: plan.nutrition_guidelines.fats },
+                { title: 'Vegetables', items: plan.nutrition_guidelines.vegetables },
+              ] as const).filter(g => g.items && g.items.length > 0).map((group) => (
+                <div key={group.title} style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>{group.title}:</p>
                   <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
-                    {plan.nutrition_guidelines.foods_to_eat.map((f, i) => <li key={i}>{f}</li>)}
+                    {group.items!.map((f, i) => <li key={i}>{f}</li>)}
                   </ul>
                 </div>
-              )}
+              ))}
               {plan.nutrition_guidelines.foods_to_avoid && (
                 <div style={{ marginTop: '8px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Foods to Avoid:</p>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#c00' }}>Foods to Avoid:</p>
                   <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
                     {plan.nutrition_guidelines.foods_to_avoid.map((f, i) => <li key={i}>{f}</li>)}
                   </ul>
                 </div>
+              )}
+              {plan.nutrition_guidelines.hydration && (
+                <p style={{ fontSize: '12px', color: '#555', marginTop: '8px' }}>Hydration: {plan.nutrition_guidelines.hydration}</p>
               )}
               {plan.nutrition_guidelines.meal_timing && (
                 <div style={{ marginTop: '8px' }}>
@@ -417,6 +557,44 @@ export default function PlanRenderer({
                   </ul>
                 </div>
               )}
+              {plan.nutrition_guidelines.dietary_notes && (
+                <div style={{ marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>Dietary Notes:</p>
+                  <ul style={{ fontSize: '12px', color: '#555', margin: '4px 0 0 16px' }}>
+                    {plan.nutrition_guidelines.dietary_notes.map((n, i) => <li key={i}>{n}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {plan.sample_daily_meal_plans && plan.sample_daily_meal_plans.filter(d => d.meals).length > 0 && (
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Sample Meal Plans</h2>
+              {plan.sample_daily_meal_plans.filter(d => d.meals).map((day, dIdx) => (
+                <div key={dIdx} style={{ marginBottom: '12px', pageBreakInside: 'avoid' }}>
+                  <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>{day.label}</h3>
+                  {day.meals?.map((meal, mIdx) => (
+                    <div key={mIdx} style={{ marginLeft: '12px', marginBottom: '6px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#333' }}>{meal.time}</p>
+                      <p style={{ fontSize: '12px', color: '#555' }}>{meal.foods}</p>
+                      <p style={{ fontSize: '11px', color: '#888' }}>{meal.macros}</p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {plan.supplement_recommendations && plan.supplement_recommendations.length > 0 && (
+            <div style={{ marginBottom: '24px', pageBreakInside: 'avoid' }}>
+              <h2 style={{ fontSize: '16px', marginBottom: '8px' }}>Supplements</h2>
+              {plan.supplement_recommendations.map((s, i) => (
+                <div key={i} style={{ marginBottom: '6px', marginLeft: '12px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600 }}>{s.name} — {s.dose}</p>
+                  <p style={{ fontSize: '12px', color: '#555' }}>{s.reason}</p>
+                </div>
+              ))}
             </div>
           )}
 
